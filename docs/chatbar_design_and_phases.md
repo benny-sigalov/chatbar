@@ -49,7 +49,6 @@ ChatBar should not feel like browser monitoring or tracking. The user remains in
 - Fail gracefully without losing the user's typed message.
 - Use session-only state.
 
-
 ---
 
 ## 3. Non-Goals for MVP
@@ -964,4 +963,3 @@ Browser tracking assistant.
 ```
 
 The product should feel explicit, lightweight, and user-controlled.
-

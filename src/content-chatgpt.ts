@@ -3,18 +3,23 @@ import {
     type ChatGptLocationChangedMessage,
 } from './messages';
 
-type ChromeRuntimeApi = {
-    runtime?: {
-        sendMessage(message: ChatGptLocationChangedMessage): Promise<unknown>;
-    };
-};
-
-const chromeApi = (globalThis as unknown as { chrome?: ChromeRuntimeApi })
-    .chrome;
 let lastReportedUrl = '';
 
 function log(message: string, details?: unknown): void {
     console.info(`[ChatBar content] ${message}`, details ?? '');
+}
+
+async function sendLocationUpdate(
+    message: ChatGptLocationChangedMessage,
+): Promise<void> {
+    try {
+        const response = await chrome.runtime.sendMessage(message);
+        log('Background acknowledged URL update', response);
+    } catch {
+        log(
+            'Could not send URL update; extension may be reloading during development',
+        );
+    }
 }
 
 function reportLocation(reason: string, force = false): void {
@@ -27,24 +32,15 @@ function reportLocation(reason: string, force = false): void {
     lastReportedUrl = url;
     log('Reporting ChatGPT URL', { reason, force, url, title: document.title });
 
-    void chromeApi?.runtime
-        ?.sendMessage({
-            type: CHATGPT_LOCATION_CHANGED,
-            payload: {
-                url,
-                title: document.title,
-                updatedAt: Date.now(),
-                reason,
-            },
-        })
-        .then((response) => {
-            log('Background acknowledged URL update', response);
-        })
-        .catch(() => {
-            log(
-                'Could not send URL update; extension may be reloading during development',
-            );
-        });
+    void sendLocationUpdate({
+        type: CHATGPT_LOCATION_CHANGED,
+        payload: {
+            url,
+            title: document.title,
+            updatedAt: Date.now(),
+            reason,
+        },
+    } satisfies ChatGptLocationChangedMessage);
 }
 
 function reportLocationIfChanged(): void {

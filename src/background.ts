@@ -1,36 +1,6 @@
 import { CHATGPT_LOCATION_CHANGED, type RuntimeMessage } from './messages';
-import { getLastChatGptUrl, setLastChatGptUrl } from './storage';
+import { ChatBarStorage } from './storage';
 
-type ChromeRuntime = {
-    runtime?: {
-        onInstalled?: {
-            addListener(callback: () => void): void;
-        };
-        onStartup?: {
-            addListener(callback: () => void): void;
-        };
-        onMessage?: {
-            addListener(
-                callback: (
-                    message: RuntimeMessage,
-                    sender: unknown,
-                    sendResponse: (response?: unknown) => void,
-                ) => boolean | void,
-            ): void;
-        };
-    };
-    sidePanel?: {
-        setOptions?(options: {
-            path: string;
-            enabled: boolean;
-        }): Promise<void>;
-        setPanelBehavior?(options: {
-            openPanelOnActionClick: boolean;
-        }): Promise<void>;
-    };
-};
-
-const chromeApi = (globalThis as unknown as { chrome?: ChromeRuntime }).chrome;
 const defaultChatGptSidePanelUrl = 'https://chatgpt.com/';
 
 function log(message: string, details?: unknown): void {
@@ -79,7 +49,7 @@ function isRootChatGptUrl(url: string): boolean {
 }
 
 async function getChatGptSidePanelUrl(): Promise<string> {
-    const lastChatGptUrl = await getLastChatGptUrl();
+    const lastChatGptUrl = await ChatBarStorage.getLastChatGptUrl();
 
     if (lastChatGptUrl && isUsableChatGptUrl(lastChatGptUrl.url)) {
         log('Using remembered ChatGPT side panel URL', lastChatGptUrl);
@@ -97,7 +67,7 @@ async function setChatGptSidePanelPath(
     const path = url ?? (await getChatGptSidePanelUrl());
     log('Before sidePanel.setOptions', { reason, path });
 
-    await chromeApi?.sidePanel?.setOptions?.({
+    await chrome.sidePanel.setOptions({
         path,
         enabled: true,
     });
@@ -112,95 +82,110 @@ async function setInitialChatGptPath(reason: string): Promise<void> {
 
 async function enableDefaultActionSidePanelOpen(): Promise<void> {
     log('Enabling browser default side panel open on action click');
-    await chromeApi?.sidePanel?.setPanelBehavior?.({
+    await chrome.sidePanel.setPanelBehavior({
         openPanelOnActionClick: true,
     });
 }
 
-chromeApi?.runtime?.onInstalled?.addListener(() => {
-    log('Runtime installed event');
-    void enableDefaultActionSidePanelOpen()
-        .then(() => setInitialChatGptPath('install'))
-        .catch((error: unknown) => {
-            console.error('Failed to configure ChatBar on install:', error);
+async function configureChatBar(reason: string): Promise<void> {
+    await enableDefaultActionSidePanelOpen();
+    await setInitialChatGptPath(reason);
+}
+
+async function handleChatGptLocationChangedMessage(
+    message: RuntimeMessage,
+): Promise<void> {
+    const lastChatGptUrl = await ChatBarStorage.getLastChatGptUrl();
+    const shouldKeepRememberedConversation =
+        lastChatGptUrl &&
+        isConversationUrl(lastChatGptUrl.url) &&
+        isRootChatGptUrl(message.payload.url);
+
+    const urlState = shouldKeepRememberedConversation
+        ? lastChatGptUrl
+        : message.payload;
+
+    if (shouldKeepRememberedConversation) {
+        log(
+            'Ignoring root ChatGPT URL because a conversation URL is remembered',
+            {
+                incomingUrl: message.payload.url,
+                incomingReason: message.payload.reason,
+                rememberedUrl: lastChatGptUrl.url,
+            },
+        );
+    } else {
+        log('Storing latest ChatGPT URL', {
+            url: message.payload.url,
+            reason: message.payload.reason,
         });
-});
-
-chromeApi?.runtime?.onStartup?.addListener(() => {
-    log('Runtime startup event');
-    void enableDefaultActionSidePanelOpen()
-        .then(() => setInitialChatGptPath('startup'))
-        .catch((error: unknown) => {
-            console.error('Failed to configure ChatBar on startup:', error);
-        });
-});
-
-chromeApi?.runtime?.onMessage?.addListener((message, _sender, sendResponse) => {
-    log('Runtime message received', message);
-
-    if (message.type !== CHATGPT_LOCATION_CHANGED) {
-        return false;
+        await ChatBarStorage.setLastChatGptUrl(message.payload);
     }
 
-    if (!isUsableChatGptUrl(message.payload.url)) {
-        log('Ignoring unusable ChatGPT URL', message.payload);
-        sendResponse({ ok: false });
-        return false;
-    }
-
-    log('Evaluating latest ChatGPT URL', {
-        url: message.payload.url,
-        reason: message.payload.reason,
-        updatedAt: message.payload.updatedAt,
+    log('Updating global side panel path from ChatGPT URL', {
+        url: urlState.url,
+        reason: urlState.reason,
     });
 
-    void getLastChatGptUrl()
-        .then(async (lastChatGptUrl) => {
-            if (
-                lastChatGptUrl &&
-                isConversationUrl(lastChatGptUrl.url) &&
-                isRootChatGptUrl(message.payload.url)
-            ) {
-                log(
-                    'Ignoring root ChatGPT URL because a conversation URL is remembered',
-                    {
-                        incomingUrl: message.payload.url,
-                        incomingReason: message.payload.reason,
-                        rememberedUrl: lastChatGptUrl.url,
-                    },
-                );
-                return lastChatGptUrl;
-            }
+    await setChatGptSidePanelPath('chatgpt-url-change-global', urlState.url);
+}
 
-            log('Storing latest ChatGPT URL', {
-                url: message.payload.url,
-                reason: message.payload.reason,
-            });
-            await setLastChatGptUrl(message.payload);
-            return message.payload;
-        })
-        .then(async (urlState) => {
-            log('Updating global side panel path from ChatGPT URL', {
-                url: urlState.url,
-                reason: urlState.reason,
-            });
+chrome.runtime.onInstalled.addListener(() => {
+    log('Runtime installed event');
+    void (async () => {
+        try {
+            await configureChatBar('install');
+        } catch (error: unknown) {
+            console.error('Failed to configure ChatBar on install:', error);
+        }
+    })();
+});
 
-            await setChatGptSidePanelPath(
-                'chatgpt-url-change-global',
-                urlState.url,
-            );
-        })
-        .then(() => {
-            log(
-                'Stored latest ChatGPT URL and updated side panel path',
-                message.payload,
-            );
-            sendResponse({ ok: true });
-        })
-        .catch((error: unknown) => {
-            console.error('Failed to store ChatGPT side panel URL:', error);
+chrome.runtime.onStartup.addListener(() => {
+    log('Runtime startup event');
+    void (async () => {
+        try {
+            await configureChatBar('startup');
+        } catch (error: unknown) {
+            console.error('Failed to configure ChatBar on startup:', error);
+        }
+    })();
+});
+
+chrome.runtime.onMessage.addListener(
+    (message: RuntimeMessage, _sender, sendResponse) => {
+        log('Runtime message received', message);
+
+        if (message.type !== CHATGPT_LOCATION_CHANGED) {
+            return false;
+        }
+
+        if (!isUsableChatGptUrl(message.payload.url)) {
+            log('Ignoring unusable ChatGPT URL', message.payload);
             sendResponse({ ok: false });
+            return false;
+        }
+
+        log('Evaluating latest ChatGPT URL', {
+            url: message.payload.url,
+            reason: message.payload.reason,
+            updatedAt: message.payload.updatedAt,
         });
 
-    return true;
-});
+        void (async () => {
+            try {
+                await handleChatGptLocationChangedMessage(message);
+                log(
+                    'Stored latest ChatGPT URL and updated side panel path',
+                    message.payload,
+                );
+                sendResponse({ ok: true });
+            } catch (error: unknown) {
+                console.error('Failed to store ChatGPT side panel URL:', error);
+                sendResponse({ ok: false });
+            }
+        })();
+
+        return true;
+    },
+);

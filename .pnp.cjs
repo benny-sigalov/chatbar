@@ -29,6 +29,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./",\
         "packageDependencies": [\
           ["@crxjs/vite-plugin", "virtual:10033921d9ad9f8fc4bc5de38ed2e12e63a0f21a81240253016581e1be9be6b6c2e767b14840d12acd64d3b6165831792e826b3d82174ee68bdf53a014fa878b#npm:2.4.0"],\
+          ["@types/chrome", "npm:0.1.42"],\
           ["chatbar", "workspace:."],\
           ["prettier", "npm:3.8.3"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"],\
@@ -360,6 +361,45 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@types/chrome", [\
+      ["npm:0.1.42", {\
+        "packageLocation": "../../../C:/Users/sigal/AppData/Local/Yarn/Berry/cache/@types-chrome-npm-0.1.42-ec51e457c8-10c0.zip/node_modules/@types/chrome/",\
+        "packageDependencies": [\
+          ["@types/chrome", "npm:0.1.42"],\
+          ["@types/filesystem", "npm:0.0.36"],\
+          ["@types/har-format", "npm:1.2.16"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/filesystem", [\
+      ["npm:0.0.36", {\
+        "packageLocation": "../../../C:/Users/sigal/AppData/Local/Yarn/Berry/cache/@types-filesystem-npm-0.0.36-8d0026c1c8-10c0.zip/node_modules/@types/filesystem/",\
+        "packageDependencies": [\
+          ["@types/filesystem", "npm:0.0.36"],\
+          ["@types/filewriter", "npm:0.0.33"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/filewriter", [\
+      ["npm:0.0.33", {\
+        "packageLocation": "../../../C:/Users/sigal/AppData/Local/Yarn/Berry/cache/@types-filewriter-npm-0.0.33-f2c6fe3dc9-10c0.zip/node_modules/@types/filewriter/",\
+        "packageDependencies": [\
+          ["@types/filewriter", "npm:0.0.33"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/har-format", [\
+      ["npm:1.2.16", {\
+        "packageLocation": "../../../C:/Users/sigal/AppData/Local/Yarn/Berry/cache/@types-har-format-npm-1.2.16-6e18e7d7d6-10c0.zip/node_modules/@types/har-format/",\
+        "packageDependencies": [\
+          ["@types/har-format", "npm:1.2.16"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["@webcomponents/custom-elements", [\
       ["npm:1.6.0", {\
         "packageLocation": "../../../C:/Users/sigal/AppData/Local/Yarn/Berry/cache/@webcomponents-custom-elements-npm-1.6.0-68cf2a4c41-10c0.zip/node_modules/@webcomponents/custom-elements/",\
@@ -421,6 +461,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./",\
         "packageDependencies": [\
           ["@crxjs/vite-plugin", "virtual:10033921d9ad9f8fc4bc5de38ed2e12e63a0f21a81240253016581e1be9be6b6c2e767b14840d12acd64d3b6165831792e826b3d82174ee68bdf53a014fa878b#npm:2.4.0"],\
+          ["@types/chrome", "npm:0.1.42"],\
           ["chatbar", "workspace:."],\
           ["prettier", "npm:3.8.3"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"],\
