@@ -19,5 +19,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["manifest.ts", "vite.config.ts", "sidepanel.html", "src"]
 }
