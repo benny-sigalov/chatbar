@@ -2,7 +2,6 @@ import type { ChatGptUrlState } from './types';
 
 type SessionStorageShape = {
     lastChatGptUrl?: ChatGptUrlState;
-    lastSidePanelTabId?: number;
 };
 
 type ChromeStorageArea = {
@@ -30,15 +29,4 @@ export async function getLastChatGptUrl(): Promise<
 
 export async function setLastChatGptUrl(value: ChatGptUrlState): Promise<void> {
     await chromeApi?.storage?.session?.set({ lastChatGptUrl: value });
-}
-
-export async function getLastSidePanelTabId(): Promise<number | undefined> {
-    const result = await chromeApi?.storage?.session?.get<{
-        lastSidePanelTabId?: number;
-    }>({});
-    return result?.lastSidePanelTabId;
-}
-
-export async function setLastSidePanelTabId(value: number): Promise<void> {
-    await chromeApi?.storage?.session?.set({ lastSidePanelTabId: value });
 }

@@ -17,15 +17,15 @@ function log(message: string, details?: unknown): void {
     console.info(`[ChatBar content] ${message}`, details ?? '');
 }
 
-function reportLocationIfChanged(): void {
+function reportLocation(reason: string, force = false): void {
     const url = location.href;
 
-    if (url === lastReportedUrl) {
+    if (!force && url === lastReportedUrl) {
         return;
     }
 
     lastReportedUrl = url;
-    log('ChatGPT URL changed', { url, title: document.title });
+    log('Reporting ChatGPT URL', { reason, force, url, title: document.title });
 
     void chromeApi?.runtime
         ?.sendMessage({
@@ -34,6 +34,7 @@ function reportLocationIfChanged(): void {
                 url,
                 title: document.title,
                 updatedAt: Date.now(),
+                reason,
             },
         })
         .then((response) => {
@@ -44,6 +45,10 @@ function reportLocationIfChanged(): void {
                 'Could not send URL update; extension may be reloading during development',
             );
         });
+}
+
+function reportLocationIfChanged(): void {
+    reportLocation('location-change');
 }
 
 function patchHistoryMethod(method: 'pushState' | 'replaceState'): void {
@@ -67,7 +72,12 @@ patchHistoryMethod('replaceState');
 
 window.addEventListener('popstate', reportLocationIfChanged);
 window.addEventListener('hashchange', reportLocationIfChanged);
-window.addEventListener('pagehide', reportLocationIfChanged);
+window.addEventListener('pagehide', () => reportLocation('pagehide', true));
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        reportLocation('visibility-hidden', true);
+    }
+});
 
 window.setInterval(reportLocationIfChanged, 1000);
-reportLocationIfChanged();
+reportLocation('initial-load');

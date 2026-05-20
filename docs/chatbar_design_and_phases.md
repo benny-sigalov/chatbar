@@ -2,18 +2,19 @@
 
 ## 1. Executive Summary
 
-ChatBar is a Chrome extension that opens ChatGPT in the Chrome side panel and lets the user include the currently visible browser page as context before sending a ChatGPT message.
+ChatBar is a Chrome extension that opens ChatGPT in the Chrome side panel and lets the user attach screenshots from the currently visible browser page as context for a ChatGPT message.
 
-The core Phase 1 experience:
+The core MVP experience:
 
 ```text
 User browses a page
 → ChatGPT is open in the side panel
 → user writes a message
-→ user enables "Include page"
+-> user optionally enables "Auto screenshot"
+-> user optionally clicks "Screenshot now" while visiting other tabs
 → user clicks Send
-→ ChatBar captures a fresh screenshot of the current page
-→ ChatBar attaches the screenshot to ChatGPT
+-> if Auto screenshot is enabled, ChatBar captures a fresh screenshot of the current active page
+-> ChatBar attaches the requested screenshot(s) to ChatGPT
 → ChatGPT sends the message
 ```
 
@@ -33,7 +34,9 @@ ChatBar should not feel like browser monitoring or tracking. The user remains in
 
 - Open ChatGPT in the Chrome side panel.
 - Keep the main browser tab as the source page.
-- Add an opt-in `Include page` control to ChatGPT.
+- Add an opt-in `Auto screenshot` control to ChatGPT.
+- Add a `Screenshot now` action to ChatGPT.
+- Allow immediate screenshot attachment from the current active tab.
 - Capture a fresh screenshot before Send.
 - Attach the screenshot to the ChatGPT message.
 - Avoid permanent storage of screenshots.
@@ -41,10 +44,11 @@ ChatBar should not feel like browser monitoring or tracking. The user remains in
 
 ### Secondary Goals
 
-- Add a manual “copy screenshot” utility.
+- Add a manual screenshot utility.
 - Show which page is being included.
-- Fail gracefully without losing the user’s typed message.
+- Fail gracefully without losing the user's typed message.
 - Use session-only state.
+
 
 ---
 
@@ -146,27 +150,37 @@ track whether ChatGPT is currently alive in the side panel. Then icon click can
 optionally close the side panel with chrome.sidePanel.close() when supported.
 ```
 
-## 5.1 Main ChatGPT Control
+## 5.1 Main ChatGPT Controls
 
 Inside ChatGPT composer, near the Send button:
 
 ```text
-[ ] Include page
+[ ] Auto screenshot    [Screenshot now]
 ```
 
-Recommended label:
+Recommended labels:
 
 ```text
-Include page
+Auto screenshot
+Screenshot now
 ```
 
-Reason:
+Meaning:
 
-- Clear.
-- Short.
-- Not scary.
-- Future-proof.
-- Better than “autoshare” or “monitor page.”
+```text
+Auto screenshot:
+  When enabled, capture the current active tab just before Send and attach it.
+
+Screenshot now:
+  Immediately capture the current active tab and attach it to the current ChatGPT composer without sending.
+```
+
+This supports two workflows:
+
+```text
+1. User works on a main page and wants the latest visible state attached at send time.
+2. User visits several relevant tabs/pages and manually attaches screenshots before sending.
+```
 
 Avoid labels like:
 
@@ -200,6 +214,15 @@ User clicks Send
 → sends message
 ```
 
+`Screenshot now` behavior:
+
+```text
+User clicks Screenshot now
+-> ChatBar captures the current visible tab immediately
+-> attaches image to ChatGPT composer
+-> does not send the message
+```
+
 ---
 
 ## 5.3 User Feedback
@@ -207,19 +230,19 @@ User clicks Send
 Show short status near the composer:
 
 ```text
-Including page...
+Capturing screenshot...
 ```
 
 On success:
 
 ```text
-Page included
+Screenshot attached
 ```
 
 On failure:
 
 ```text
-Could not include page. Sending normally.
+Could not capture screenshot.
 ```
 
 Important rule:
@@ -260,12 +283,12 @@ ChatBar should follow these rules:
 - No source-page DOM extraction in MVP.
 - No continuous capture loop.
 - No hidden sharing.
-- Screenshot is captured only when the user sends with `Include page` enabled.
+- Screenshot is captured only when the user clicks `Screenshot now` or sends with `Auto screenshot` enabled.
 
 Suggested privacy wording:
 
 ```text
-ChatBar only captures a screenshot when you explicitly send a ChatGPT message with Include page enabled. Screenshots are not stored, uploaded to our servers, or used for tracking.
+ChatBar only captures a screenshot when you explicitly click Screenshot now or send a ChatGPT message with Auto screenshot enabled. Screenshots are not stored, uploaded to our servers, or used for tracking.
 ```
 
 ---
@@ -288,7 +311,8 @@ sidepanel.html / sidepanel.ts
 content-chatgpt.ts
   - runs on ChatGPT
   - also runs when ChatGPT is loaded as the side panel top-level page
-  - injects Include page toggle
+  - injects Auto screenshot toggle
+  - injects Screenshot now action
   - intercepts Send
   - attaches screenshot
   - waits for preview
@@ -603,22 +627,23 @@ User is viewing a page
 
 ---
 
-## Phase 4 — Inject “Include Page” Control
+## Phase 4 - Inject Screenshot Controls
 
 ### Goal
 
-Add an opt-in control inside ChatGPT UI.
+Add screenshot controls inside ChatGPT UI.
 
 ### Deliverables
 
 - Inject near ChatGPT Send button:
 
 ```text
-[ ] Include page
+[ ] Auto screenshot    [Screenshot now]
 ```
 
-- Default off.
-- Remember setting during browser session.
+- Auto screenshot defaults off.
+- Remember Auto screenshot setting during browser session.
+- Screenshot now is an immediate action and does not change the toggle.
 - Re-inject safely if ChatGPT UI re-renders.
 - Avoid duplicate controls.
 - Optionally show source title:
@@ -630,7 +655,7 @@ Page: <source title>
 ### Success Criteria
 
 ```text
-ChatGPT shows Include page toggle
+ChatGPT shows Auto screenshot and Screenshot now controls
 Toggle survives UI re-render
 No duplicate toggles
 ```
@@ -645,17 +670,17 @@ Detect when the user sends a ChatGPT message.
 
 ### Deliverables
 
-When `Include page` is off:
+When `Auto screenshot` is off:
 
 ```text
 Send works normally.
 ```
 
-When `Include page` is on:
+When `Auto screenshot` is on:
 
 ```text
 prevent original send
-show "Including page..."
+show "Capturing screenshot..."
 request screenshot
 continue only after screenshot is ready
 ```
@@ -670,8 +695,8 @@ Implementation requirements:
 ### Success Criteria
 
 ```text
-Include page off → normal send
-Include page on → Send is intercepted safely
+Auto screenshot off → normal send
+Auto screenshot on → Send is intercepted safely
 No infinite loop
 Typed message remains intact
 ```
@@ -703,7 +728,7 @@ If attach fails, show error and allow/send text normally.
 ### Success Criteria
 
 ```text
-User clicks Send with Include page enabled
+User clicks Send with Auto screenshot enabled
 → screenshot attaches
 → preview appears
 → message sends
@@ -711,34 +736,34 @@ User clicks Send with Include page enabled
 
 ---
 
-## Phase 7 — Manual “Copy Screenshot” Utility
+## Phase 7 - Manual Screenshot Utility
 
 ### Goal
 
-Provide standalone value outside ChatGPT auto-send.
+Provide manual screenshot attachment outside ChatGPT auto-send.
 
 ### Deliverables
 
-- Extension action or side panel button:
+- ChatGPT composer action:
 
 ```text
-Copy page screenshot
+Screenshot now
 ```
 
 - Captures current visible tab.
-- Copies image to clipboard.
+- Attaches image to ChatGPT composer.
 - Shows feedback:
 
 ```text
-Screenshot copied — paste anywhere
+Screenshot attached
 ```
 
 ### Success Criteria
 
 ```text
 User clicks screenshot action
-→ screenshot is copied
-→ user can paste into ChatGPT, Slack, email, etc.
+→ screenshot is attached to the current ChatGPT composer
+→ message is not sent automatically
 ```
 
 ---
@@ -753,9 +778,9 @@ Make ChatBar feel safe and predictable.
 
 - Source page indicator.
 - Clear statuses:
-    - `Including page...`
-    - `Page included`
-    - `Could not include page`
+    - `Capturing screenshot...`
+    - `Screenshot attached`
+    - `Could not capture screenshot`
 - Clean failure behavior.
 - No hidden capture.
 - No analytics.
@@ -906,9 +931,10 @@ The MVP is complete when:
 
 ```text
 ChatBar opens ChatGPT in the side panel.
-The user can enable Include page.
-When sending a message, ChatBar captures the current visible browser page.
-The screenshot is attached to ChatGPT before the message is sent.
+The user can enable Auto screenshot.
+The user can click Screenshot now to attach screenshots manually.
+When sending with Auto screenshot enabled, ChatBar captures the current visible browser page.
+Screenshots are attached to ChatGPT before the message is sent, or immediately when Screenshot now is clicked.
 No screenshots are stored permanently.
 The user gets clear feedback and normal sending is never broken.
 ```
@@ -938,3 +964,4 @@ Browser tracking assistant.
 ```
 
 The product should feel explicit, lightweight, and user-controlled.
+
