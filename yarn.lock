@@ -309,6 +309,7 @@ __metadata:
   resolution: "chatbar@workspace:."
   dependencies:
     "@crxjs/vite-plugin": "npm:^2.4.0"
+    prettier: "npm:^3.7.4"
     typescript: "npm:~6.0.2"
     vite: "npm:^8.0.12"
   languageName: unknown
@@ -854,6 +855,15 @@ __metadata:
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.1"
   checksum: 10c0/48138207cf5ef5581be1bfe2cb65ccfe0ac75e43888ba045afc8ed6043d7b56aeb3b9a9fe5b353ff554be943cd0cc15d826ccb991525159175971e5ee8ab0237
+  languageName: node
+  linkType: hard
+
+"prettier@npm:^3.7.4":
+  version: 3.8.3
+  resolution: "prettier@npm:3.8.3"
+  bin:
+    prettier: bin/prettier.cjs
+  checksum: 10c0/754816fd7593eb80f6376d7476d463e832c38a12f32775a82683adb6e35b772b1f484d65f19401507b983a8c8a7cd5a4a9f12006bd56491e8f35503473f77473
   languageName: node
   linkType: hard
 

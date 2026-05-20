@@ -1,12 +1,13 @@
-import { crx } from '@crxjs/vite-plugin'
-import { defineConfig } from 'vite'
+import { crx } from '@crxjs/vite-plugin';
+import { defineConfig } from 'vite';
 
-import manifest from './manifest'
+import manifest from './manifest';
 
 export default defineConfig({
-  plugins: [crx({ manifest })],
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-  },
-})
+    plugins: [crx({ manifest })],
+    build: {
+        outDir: 'dist',
+        emptyOutDir: true,
+        sourcemap: true,
+    },
+});

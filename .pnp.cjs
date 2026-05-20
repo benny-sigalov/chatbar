@@ -30,6 +30,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@crxjs/vite-plugin", "virtual:10033921d9ad9f8fc4bc5de38ed2e12e63a0f21a81240253016581e1be9be6b6c2e767b14840d12acd64d3b6165831792e826b3d82174ee68bdf53a014fa878b#npm:2.4.0"],\
           ["chatbar", "workspace:."],\
+          ["prettier", "npm:3.8.3"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"],\
           ["vite", "virtual:10033921d9ad9f8fc4bc5de38ed2e12e63a0f21a81240253016581e1be9be6b6c2e767b14840d12acd64d3b6165831792e826b3d82174ee68bdf53a014fa878b#npm:8.0.13"]\
         ],\
@@ -421,6 +422,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@crxjs/vite-plugin", "virtual:10033921d9ad9f8fc4bc5de38ed2e12e63a0f21a81240253016581e1be9be6b6c2e767b14840d12acd64d3b6165831792e826b3d82174ee68bdf53a014fa878b#npm:2.4.0"],\
           ["chatbar", "workspace:."],\
+          ["prettier", "npm:3.8.3"],\
           ["typescript", "patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"],\
           ["vite", "virtual:10033921d9ad9f8fc4bc5de38ed2e12e63a0f21a81240253016581e1be9be6b6c2e767b14840d12acd64d3b6165831792e826b3d82174ee68bdf53a014fa878b#npm:8.0.13"]\
         ],\
@@ -1030,6 +1032,15 @@ const RAW_RUNTIME_STATE =
           ["picocolors", "npm:1.1.1"],\
           ["postcss", "npm:8.5.14"],\
           ["source-map-js", "npm:1.2.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prettier", [\
+      ["npm:3.8.3", {\
+        "packageLocation": "./.yarn/unplugged/prettier-npm-3.8.3-ecd857a540/node_modules/prettier/",\
+        "packageDependencies": [\
+          ["prettier", "npm:3.8.3"]\
         ],\
         "linkType": "HARD"\
       }]\

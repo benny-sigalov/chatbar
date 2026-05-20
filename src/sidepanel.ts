@@ -1,1 +1,1 @@
-import './sidepanel.css'
+import './sidepanel.css';

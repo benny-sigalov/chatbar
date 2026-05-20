@@ -330,13 +330,13 @@ Suggested session state:
 
 ```ts
 type SessionState = {
-  sourceTabId?: number;
-  sourceWindowId?: number;
-  sourceUrl?: string;
-  sourceTitle?: string;
+    sourceTabId?: number;
+    sourceWindowId?: number;
+    sourceUrl?: string;
+    sourceTitle?: string;
 
-  includePageEnabled?: boolean;
-  isCaptureInProgress?: boolean;
+    includePageEnabled?: boolean;
+    isCaptureInProgress?: boolean;
 };
 ```
 
@@ -369,18 +369,15 @@ Recommended initial permissions:
 
 ```json
 {
-  "permissions": [
-    "tabs",
-    "activeTab",
-    "scripting",
-    "storage",
-    "clipboardWrite",
-    "sidePanel"
-  ],
-  "host_permissions": [
-    "https://chatgpt.com/*",
-    "https://chat.openai.com/*"
-  ]
+    "permissions": [
+        "tabs",
+        "activeTab",
+        "scripting",
+        "storage",
+        "clipboardWrite",
+        "sidePanel"
+    ],
+    "host_permissions": ["https://chatgpt.com/*", "https://chat.openai.com/*"]
 }
 ```
 
@@ -427,7 +424,7 @@ This should be re-tested before packaging or store submission.
 There is no reliable built-in API like:
 
 ```ts
-chrome.sidePanel.isOpen()
+chrome.sidePanel.isOpen();
 ```
 
 MVP behavior:
@@ -569,10 +566,10 @@ sourceTitle
 ```
 
 - Ignore:
-  - `chrome://`
-  - extension pages
-  - empty/new tab pages
-  - ChatGPT pages opened as normal tabs
+    - `chrome://`
+    - extension pages
+    - empty/new tab pages
+    - ChatGPT pages opened as normal tabs
 
 ### Success Criteria
 
@@ -691,9 +688,9 @@ Add the screenshot to the ChatGPT message.
 
 - Convert screenshot to `Blob` / `File`.
 - Attach to composer using:
-  - paste simulation, or
-  - drop simulation, or
-  - file input if discoverable.
+    - paste simulation, or
+    - drop simulation, or
+    - file input if discoverable.
 - Wait for attachment preview/upload readiness.
 - Programmatically send after preview appears.
 
@@ -756,9 +753,9 @@ Make ChatBar feel safe and predictable.
 
 - Source page indicator.
 - Clear statuses:
-  - `Including page...`
-  - `Page included`
-  - `Could not include page`
+    - `Including page...`
+    - `Page included`
+    - `Could not include page`
 - Clean failure behavior.
 - No hidden capture.
 - No analytics.
