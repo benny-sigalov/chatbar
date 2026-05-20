@@ -1,5 +1,5 @@
-import { CHATGPT_LOCATION_CHANGED, type RuntimeMessage } from './messages';
-import { ChatBarStorage } from './storage';
+import type { RuntimeMessage } from "../shared/messages/messages";
+import { ChatBarStorage } from "../shared/storage/storage";
 
 const defaultChatGptSidePanelUrl = 'https://chatgpt.com/';
 
@@ -156,7 +156,7 @@ chrome.runtime.onMessage.addListener(
     (message: RuntimeMessage, _sender, sendResponse) => {
         log('Runtime message received', message);
 
-        if (message.type !== CHATGPT_LOCATION_CHANGED) {
+        if (message.type !== "CHATGPT_LOCATION_CHANGED") {
             return false;
         }
 

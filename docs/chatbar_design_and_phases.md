@@ -144,9 +144,10 @@ Reason:
 Later toggle behavior:
 
 ```text
-Once content-chatgpt.ts communicates reliably with background.ts, ChatBar can
-track whether ChatGPT is currently alive in the side panel. Then icon click can
-optionally close the side panel with chrome.sidePanel.close() when supported.
+Once src/content/chatgpt.ts communicates reliably with
+src/background/background.ts, ChatBar can track whether ChatGPT is currently
+alive in the side panel. Then icon click can optionally close the side panel
+with chrome.sidePanel.close() when supported.
 ```
 
 ## 5.1 Main ChatGPT Controls
@@ -297,17 +298,17 @@ ChatBar only captures a screenshot when you explicitly click Screenshot now or s
 ```text
 Chrome Extension - Manifest V3
 
-background.ts
+src/background/background.ts
   - tracks current source tab
   - captures visible tab screenshots
   - manages session-only state
   - handles extension messages
   - sets ChatGPT as the side panel path on extension icon click
 
-sidepanel.html / sidepanel.ts
+sidepanel.html / src/sidepanel/sidepanel.ts
   - fallback helper UI if direct ChatGPT side panel path fails
 
-content-chatgpt.ts
+src/content/chatgpt.ts
   - runs on ChatGPT
   - also runs when ChatGPT is loaded as the side panel top-level page
   - injects Auto screenshot toggle
@@ -318,25 +319,26 @@ content-chatgpt.ts
   - re-sends safely
   - later sends side-panel presence/open-close signals to background
 
-storage.ts
+src/shared/storage/storage.ts
   - typed wrapper over chrome.storage.session
+  - exports session storage models such as ChatGptUrlState
 
-screenshot.ts
+src/background/screenshot.ts
   - capture helpers
   - dataUrl/blob/file conversion
 
-chatgptDom.ts
+src/content/chatgptDom.ts
   - composer detection
   - send button detection
   - toggle injection
   - image attachment logic
   - preview wait logic
 
-messages.ts
+src/shared/messages/messages.ts
   - typed runtime messages
 
-types.ts
-  - shared TypeScript types
+src/types/chrome-globals.d.ts
+  - Chrome extension type references
 ```
 
 ---
@@ -460,8 +462,8 @@ If already open, leaving it open is acceptable.
 Future toggle behavior can be implemented after content script messaging exists:
 
 ```text
-content-chatgpt.ts sends ready/pagehide/heartbeat messages
--> background.ts keeps approximate per-window side panel state
+src/content/chatgpt.ts sends ready/pagehide/heartbeat messages
+-> src/background/background.ts keeps approximate per-window side panel state
 -> icon click can call chrome.sidePanel.close() when state says open
 ```
 
@@ -473,7 +475,7 @@ The ChatGPT UI may change.
 
 Mitigation:
 
-- Keep DOM logic isolated in `chatgptDom.ts`.
+- Keep DOM logic isolated in `src/content/chatgptDom.ts`.
 - Avoid brittle class-name selectors.
 - Prefer accessible selectors where possible.
 - Use `MutationObserver`.
@@ -534,7 +536,7 @@ panel page.
 
 ### Deliverables
 
-- Side panel registered in `manifest.json`.
+- Side panel registered in `manifest.ts` and emitted to `manifest.json`.
 - Extension icon sets side panel path to `https://chatgpt.com/`.
 - Browser opens the side panel using action-click behavior.
 - Content script can run on ChatGPT in the side panel.
@@ -861,22 +863,27 @@ Extension is ready to share as an unpacked build or prepare for Chrome Web Store
 
 ```text
 src/
-  background.ts
-  sidepanel.ts
-  content-chatgpt.ts
-  storage.ts
-  tabTracker.ts
-  screenshot.ts
-  chatgptDom.ts
-  messages.ts
-  types.ts
-
-public/
-  manifest.json
-  sidepanel.html
-  icons/
+  background/
+    background.ts
+    screenshot.ts
+    tabTracker.ts
+  content/
+    chatgpt.ts
+    chatgptDom.ts
+  shared/
+    messages/
+      messages.ts
+    storage/
+      storage.ts
+  sidepanel/
+    sidepanel.css
+    sidepanel.ts
+  types/
+    chrome-globals.d.ts
 
 package.json
+manifest.ts
+sidepanel.html
 tsconfig.json
 vite.config.ts
 README.md

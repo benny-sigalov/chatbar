@@ -1,4 +1,9 @@
-import type { ChatGptUrlState } from './types';
+export type ChatGptUrlState = {
+    url: string;
+    title?: string;
+    updatedAt: number;
+    reason?: string;
+};
 
 type SessionStorageShape = {
     lastChatGptUrl?: ChatGptUrlState;
@@ -11,7 +16,7 @@ export class ChatBarStorage {
         const result = await chrome.storage.session.get<{
             lastChatGptUrl?: ChatGptUrlState;
         }>({});
-        
+
         return result?.lastChatGptUrl;
     }
 
