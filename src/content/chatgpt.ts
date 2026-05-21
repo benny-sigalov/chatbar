@@ -138,9 +138,9 @@ class ChatGptContentScript {
         });
     };
 
-    private handleCaptureVisibleTabResult(
+    private async handleCaptureVisibleTabResult(
         message: CaptureVisibleTabResultMessage,
-    ): void {
+    ): Promise<void> {
         if (!message.payload.ok) {
             this.log("Visible tab capture failed", {
                 requestId: message.requestId,
@@ -165,6 +165,34 @@ class ChatGptContentScript {
             this.debugImageElement.src = message.payload.dataUrl;
             this.debugImageElement.hidden = false;
         }
+
+        await this.copyDataUrlToClipboard(message.payload.dataUrl);
+    }
+
+    private async copyDataUrlToClipboard(dataUrl: string): Promise<void> {
+        try {
+            const blob = await this.dataUrlToBlob(dataUrl);
+
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    [blob.type]: blob,
+                }),
+            ]);
+
+            this.setDebugStatus("Captured and copied to clipboard");
+        } catch (error: unknown) {
+            this.setDebugStatus(
+                error instanceof Error
+                    ? `Captured, but copy failed: ${error.message}`
+                    : "Captured, but copy failed.",
+            );
+        }
+    }
+
+    private async dataUrlToBlob(dataUrl: string): Promise<Blob> {
+        const response = await fetch(dataUrl);
+
+        return response.blob();
     }
 
     private handleCaptureVisibleTabStatus(

@@ -8,10 +8,8 @@ export default defineManifest({
     action: {
         default_title: "ChatBar",
     },
-    permissions: ["activeTab", "sidePanel"],
-    host_permissions: [
-        "<all_urls>",
-    ],
+    permissions: ["activeTab", "clipboardWrite", "sidePanel"],
+    host_permissions: ["<all_urls>"],
     side_panel: {
         default_path: "sidepanel.html",
     },
