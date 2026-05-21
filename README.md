@@ -8,6 +8,10 @@ If ChatBar is useful to you, you can buy me a coffee:
 
 https://buymeacoffee.com/benny-sigalov
 
+## Contact
+
+chatbar@fastmail.com
+
 ## What It Does
 
 - Opens ChatGPT in Chrome's side panel.
@@ -93,6 +97,3 @@ See [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 MIT. See [LICENSE](LICENSE).
 
-## Contact
-
-chatbar@fastmail.com
