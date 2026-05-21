@@ -94,7 +94,7 @@ export class ChatGptDom {
 
     public async waitForSendButtonReady(
         timeoutMs = 60000,
-        pollMs = 250,
+        pollMs = 150,
     ): Promise<HTMLButtonElement | null> {
         const startedAt = Date.now();
 
@@ -241,4 +241,5 @@ export class ChatGptDom {
             window.setTimeout(resolve, milliseconds);
         });
     }
+
 }

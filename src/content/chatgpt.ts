@@ -14,6 +14,7 @@ class ChatGptContentScript {
     private toolbarAutoScreenshotToggleElement?: HTMLButtonElement;
     private toolbarButtonElement?: HTMLButtonElement;
     private autoScreenshotEnabled = false;
+    private allowNextSendClick = false;
     private isAutoSendInProgress = false;
     private canCaptureVisibleTab = true;
     private activeCaptureSourceKey = "";
@@ -131,6 +132,11 @@ class ChatGptContentScript {
     }
 
     private requestVisibleTabCapture = (): void => {
+        if (this.isAutoSendInProgress) {
+            this.setToolbarStatus("Screenshot already in progress.");
+            return;
+        }
+
         this.requestScreenshot("manual");
     };
 
@@ -155,7 +161,6 @@ class ChatGptContentScript {
     private interceptAutoSendKeyDown = (event: KeyboardEvent): void => {
         if (
             !this.autoScreenshotEnabled ||
-            this.isAutoSendInProgress ||
             !this.canCaptureVisibleTab
         ) {
             return;
@@ -167,6 +172,11 @@ class ChatGptContentScript {
 
         event.preventDefault();
         event.stopImmediatePropagation();
+
+        if (this.isAutoSendInProgress) {
+            return;
+        }
+
         this.isAutoSendInProgress = true;
         this.setToolbarStatus("Capturing before send...");
         this.requestScreenshot("auto-send");
@@ -204,9 +214,13 @@ class ChatGptContentScript {
     };
 
     private interceptAutoSendClick = (event: MouseEvent): void => {
+        if (this.allowNextSendClick) {
+            this.allowNextSendClick = false;
+            return;
+        }
+
         if (
             !this.autoScreenshotEnabled ||
-            this.isAutoSendInProgress ||
             !this.canCaptureVisibleTab
         ) {
             return;
@@ -214,6 +228,11 @@ class ChatGptContentScript {
 
         event.preventDefault();
         event.stopImmediatePropagation();
+
+        if (this.isAutoSendInProgress) {
+            return;
+        }
+
         this.isAutoSendInProgress = true;
         this.setToolbarStatus("Capturing before send...");
         this.requestScreenshot("auto-send");
@@ -300,6 +319,7 @@ class ChatGptContentScript {
             return;
         }
 
+        this.allowNextSendClick = true;
         this.chatGptDom.clickSendButton(sendButton);
         this.setToolbarStatus("Screenshot attached and sent");
         this.isAutoSendInProgress = false;
