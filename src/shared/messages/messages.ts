@@ -1,10 +1,15 @@
-import type { ChatGptUrlState } from "../storage/storage";
+export type MessageType = "CHATGPT_URL_UPDATED";
 
-export type MessageType = "CHATGPT_LOCATION_CHANGED";
+export type ChatGptUrlState = {
+    url: string;
+    title?: string;
+    updatedAt: number;
+    reason?: string;
+};
 
-export type ChatGptLocationChangedMessage = {
+export type ChatGptUrlUpdatedMessage = {
     type: MessageType;
     payload: ChatGptUrlState;
 };
 
-export type RuntimeMessage = ChatGptLocationChangedMessage;
+export type RuntimeMessage = ChatGptUrlUpdatedMessage;

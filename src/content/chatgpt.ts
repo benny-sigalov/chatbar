@@ -1,7 +1,10 @@
-import type { ChatGptLocationChangedMessage } from "../shared/messages/messages";
+import type { ChatGptUrlUpdatedMessage } from "../shared/messages/messages";
 
 class ChatGptContentScript {
     private lastReportedUrl = "";
+    private readonly port = chrome.runtime.connect({
+        name: "chatgpt-sidebar",
+    });
 
     public register(): void {
         this.log("ChatGPT helper loaded", {
@@ -14,14 +17,9 @@ class ChatGptContentScript {
 
         window.addEventListener("popstate", this.reportLocationIfChanged);
         window.addEventListener("hashchange", this.reportLocationIfChanged);
-        window.addEventListener("pagehide", this.reportPagehide);
-        document.addEventListener(
-            "visibilitychange",
-            this.reportVisibilityHidden,
-        );
-
         window.setInterval(this.reportLocationIfChanged, 1000);
-        this.reportLocation("initial-load");
+
+        this.reportLocation("initial-load", true);
     }
 
     private reportLocation = (reason: string, force = false): void => {
@@ -32,43 +30,32 @@ class ChatGptContentScript {
         }
 
         this.lastReportedUrl = url;
-        this.log("Reporting ChatGPT URL", {
-            reason,
-            force,
-            url,
-            title: document.title,
-        });
-
-        void this.sendLocationUpdate({
-            type: "CHATGPT_LOCATION_CHANGED",
+        const message = {
+            type: "CHATGPT_URL_UPDATED",
             payload: {
                 url,
                 title: document.title,
                 updatedAt: Date.now(),
                 reason,
             },
-        } satisfies ChatGptLocationChangedMessage);
+        } satisfies ChatGptUrlUpdatedMessage;
+
+        this.log("Reporting ChatGPT URL update", message.payload);
+
+        try {
+            this.port.postMessage(message);
+        } catch {
+            this.log("Could not post URL update through runtime port");
+        }
     };
 
     private reportLocationIfChanged = (): void => {
         this.reportLocation("location-change");
     };
 
-    private reportPagehide = (): void => {
-        this.reportLocation("pagehide", true);
-    };
-
-    private reportVisibilityHidden = (): void => {
-        if (document.visibilityState === "hidden") {
-            this.reportLocation("visibility-hidden", true);
-        }
-    };
-
     private patchHistoryMethod(method: "pushState" | "replaceState"): void {
         const original = history[method];
         const reportLocationIfChanged = this.reportLocationIfChanged;
-
-        this.log(`Patching history.${method}`);
 
         history[method] = function patchedHistoryMethod(
             this: History,
@@ -79,19 +66,6 @@ class ChatGptContentScript {
             original.call(this, data, unused, url);
             window.queueMicrotask(reportLocationIfChanged);
         };
-    }
-
-    private async sendLocationUpdate(
-        message: ChatGptLocationChangedMessage,
-    ): Promise<void> {
-        try {
-            const response = await chrome.runtime.sendMessage(message);
-            this.log("Background acknowledged URL update", response);
-        } catch {
-            this.log(
-                "Could not send URL update; extension may be reloading during development",
-            );
-        }
     }
 
     private log(message: string, details?: unknown): void {

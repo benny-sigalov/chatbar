@@ -8,7 +8,7 @@ export default defineManifest({
     action: {
         default_title: "ChatBar",
     },
-    permissions: ["activeTab", "sidePanel", "storage", "tabs"],
+    permissions: ["activeTab", "sidePanel"],
     host_permissions: ["https://chatgpt.com/*", "https://chat.openai.com/*"],
     side_panel: {
         default_path: "sidepanel.html",
