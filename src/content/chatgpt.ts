@@ -166,19 +166,12 @@ class ChatGptContentScript {
             this.debugImageElement.hidden = false;
         }
 
-        await this.copyDataUrlToClipboard(message.payload.dataUrl);
+        await this.pasteDataUrlIntoComposer(message.payload.dataUrl);
     }
 
-    private async copyDataUrlToClipboard(dataUrl: string): Promise<void> {
+    private async pasteDataUrlIntoComposer(dataUrl: string): Promise<void> {
         try {
             const blob = await this.dataUrlToBlob(dataUrl);
-
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    [blob.type]: blob,
-                }),
-            ]);
-
             const pasteResult = await this.pasteBlobIntoComposer(blob);
 
             if (pasteResult === "pasted") {
@@ -188,14 +181,14 @@ class ChatGptContentScript {
 
             this.setDebugStatus(
                 pasteResult === "composer-not-found"
-                    ? "Copied. Click the composer and press Ctrl+V."
-                    : "Copied. Press Ctrl+V to attach.",
+                    ? "Composer not found."
+                    : "Paste was not accepted.",
             );
         } catch (error: unknown) {
             this.setDebugStatus(
                 error instanceof Error
-                    ? `Captured, but copy failed: ${error.message}`
-                    : "Captured, but copy failed.",
+                    ? `Captured, but paste failed: ${error.message}`
+                    : "Captured, but paste failed.",
             );
         }
     }
@@ -216,7 +209,6 @@ class ChatGptContentScript {
         }
 
         composer.focus();
-        this.moveCaretToEnd(composer);
 
         const beforeAttachmentCount = this.countAttachmentElements();
         const file = new File([blob], `chatbar-screenshot-${Date.now()}.png`, {
@@ -282,20 +274,6 @@ class ChatGptContentScript {
                 resolve(true);
             }
         });
-    }
-
-    private moveCaretToEnd(element: HTMLElement): void {
-        const selection = window.getSelection();
-
-        if (!selection) {
-            return;
-        }
-
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
     }
 
     private handleCaptureVisibleTabStatus(
