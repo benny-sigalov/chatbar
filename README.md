@@ -4,6 +4,10 @@ ChatBar is a Chrome extension that opens ChatGPT in the browser side panel and l
 
 ChatBar is not affiliated with, endorsed by, or sponsored by OpenAI.
 
+If ChatBar is useful to you, you can buy me a coffee:
+
+https://buymeacoffee.com/benny-sigalov
+
 ## What It Does
 
 - Opens ChatGPT in Chrome's side panel.
@@ -92,9 +96,3 @@ MIT. See [LICENSE](LICENSE).
 ## Contact
 
 chatbar@fastmail.com
-
-## Support
-
-If ChatBar is useful to you, you can buy me a coffee:
-
-https://buymeacoffee.com/benny-sigalov
