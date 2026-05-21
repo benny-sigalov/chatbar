@@ -1,11 +1,20 @@
 {
     "name": "chatbar",
     "private": true,
-    "version": "0.0.0",
+    "version": "1.0.0",
+    "description": "Chrome side panel helper that attaches current-page screenshots to ChatGPT.",
+    "author": "Benjamin Sigalov <chatbar@fastmail.com>",
+    "funding": {
+        "type": "buymeacoffee",
+        "url": "https://buymeacoffee.com/benny-sigalov"
+    },
+    "license": "MIT",
     "type": "module",
     "scripts": {
+        "check": "yarn format:check && yarn build",
         "dev": "vite",
         "build": "tsc && vite build",
+        "package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "preview": "vite preview"

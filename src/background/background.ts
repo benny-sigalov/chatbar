@@ -58,7 +58,11 @@ chrome.runtime.onConnect.addListener((port) => {
         }
 
         if (message.type === "CAPTURE_VISIBLE_TAB") {
-            void captureVisibleTabForPort(port, message.requestId, message.mode);
+            void captureVisibleTabForPort(
+                port,
+                message.requestId,
+                message.mode,
+            );
         }
     });
 
@@ -74,8 +78,10 @@ chrome.runtime.onConnect.addListener((port) => {
         console.log(
             "SIDEBAR DISCONNECTED TabId = ",
             port.sender?.tab?.id,
-            " URL = ",url,
-            " isSideBar = ", isSidebarPage
+            " URL = ",
+            url,
+            " isSideBar = ",
+            isSidebarPage,
         );
         if (!url) {
             return;
@@ -115,9 +121,7 @@ async function sendVisibleTabCaptureStatus(
                       canCapture: false,
                       url: status.url,
                       title: status.title,
-                      reason:
-                          status.reason ??
-                          "This page cannot be captured.",
+                      reason: status.reason ?? "This page cannot be captured.",
                   },
         } satisfies BackgroundMessage);
     } catch (error: unknown) {

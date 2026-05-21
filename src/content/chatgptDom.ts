@@ -142,7 +142,8 @@ export class ChatGptDom {
         toolbar.style.borderRadius = "8px";
         toolbar.style.background = "rgba(255, 255, 255, 0.86)";
         toolbar.style.color = "#111827";
-        toolbar.style.font = "12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+        toolbar.style.font =
+            "12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
 
         const autoScreenshotToggle = document.createElement("button");
         autoScreenshotToggle.type = "button";
@@ -155,7 +156,8 @@ export class ChatGptDom {
         autoScreenshotToggle.style.background = "#ffffff";
         autoScreenshotToggle.style.color = "#111827";
         autoScreenshotToggle.style.cursor = "pointer";
-        autoScreenshotToggle.style.font = "600 12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+        autoScreenshotToggle.style.font =
+            "600 12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
         autoScreenshotToggle.addEventListener("click", onAutoScreenshotToggle);
 
         const button = document.createElement("button");
@@ -168,7 +170,8 @@ export class ChatGptDom {
         button.style.background = "#111827";
         button.style.color = "#ffffff";
         button.style.cursor = "pointer";
-        button.style.font = "600 12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+        button.style.font =
+            "600 12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
         button.addEventListener("click", onScreenshotNow);
 
         const source = document.createElement("span");
@@ -241,5 +244,4 @@ export class ChatGptDom {
             window.setTimeout(resolve, milliseconds);
         });
     }
-
 }

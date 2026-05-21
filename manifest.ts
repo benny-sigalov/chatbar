@@ -3,7 +3,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 export default defineManifest({
     manifest_version: 3,
     name: "ChatBar",
-    version: "0.0.0",
+    version: "1.0.0",
     description: "ChatBar Chrome extension.",
     action: {
         default_title: "ChatBar",

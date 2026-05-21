@@ -53,7 +53,9 @@ class ChatGptContentScript {
         }
 
         if (!message.payload.isSidebarPage) {
-            this.log("ChatGPT helper is running in a normal page; skipping sidebar initialization");
+            this.log(
+                "ChatGPT helper is running in a normal page; skipping sidebar initialization",
+            );
             this.port.disconnect();
             return;
         }
@@ -68,7 +70,11 @@ class ChatGptContentScript {
 
         window.addEventListener("popstate", this.reportLocationIfChanged);
         window.addEventListener("hashchange", this.reportLocationIfChanged);
-        document.addEventListener("keydown", this.interceptAutoSendKeyDown, true);
+        document.addEventListener(
+            "keydown",
+            this.interceptAutoSendKeyDown,
+            true,
+        );
         this.startSendButtonPolling();
         window.setInterval(this.reportLocationIfChanged, 1000);
         document.addEventListener(
@@ -159,10 +165,7 @@ class ChatGptContentScript {
     };
 
     private interceptAutoSendKeyDown = (event: KeyboardEvent): void => {
-        if (
-            !this.autoScreenshotEnabled ||
-            !this.canCaptureVisibleTab
-        ) {
+        if (!this.autoScreenshotEnabled || !this.canCaptureVisibleTab) {
             return;
         }
 
@@ -219,10 +222,7 @@ class ChatGptContentScript {
             return;
         }
 
-        if (
-            !this.autoScreenshotEnabled ||
-            !this.canCaptureVisibleTab
-        ) {
+        if (!this.autoScreenshotEnabled || !this.canCaptureVisibleTab) {
             return;
         }
 
@@ -380,20 +380,26 @@ class ChatGptContentScript {
             return;
         }
 
-        this.toolbarAutoScreenshotToggleElement.textContent =
-            this.autoScreenshotEnabled
-                ? "Auto screenshot: On"
-                : "Auto screenshot: Off";
+        this.toolbarAutoScreenshotToggleElement.textContent = this
+            .autoScreenshotEnabled
+            ? "Auto screenshot: On"
+            : "Auto screenshot: Off";
         this.toolbarAutoScreenshotToggleElement.setAttribute(
             "aria-pressed",
             String(this.autoScreenshotEnabled),
         );
-        this.toolbarAutoScreenshotToggleElement.style.background =
-            this.autoScreenshotEnabled ? "#dcfce7" : "#ffffff";
-        this.toolbarAutoScreenshotToggleElement.style.borderColor =
-            this.autoScreenshotEnabled ? "#16a34a" : "rgba(15, 23, 42, 0.24)";
-        this.toolbarAutoScreenshotToggleElement.style.color =
-            this.autoScreenshotEnabled ? "#166534" : "#111827";
+        this.toolbarAutoScreenshotToggleElement.style.background = this
+            .autoScreenshotEnabled
+            ? "#dcfce7"
+            : "#ffffff";
+        this.toolbarAutoScreenshotToggleElement.style.borderColor = this
+            .autoScreenshotEnabled
+            ? "#16a34a"
+            : "rgba(15, 23, 42, 0.24)";
+        this.toolbarAutoScreenshotToggleElement.style.color = this
+            .autoScreenshotEnabled
+            ? "#166534"
+            : "#111827";
     }
 
     private observeComposerForToolbar(): void {
