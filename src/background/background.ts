@@ -3,6 +3,10 @@ import type {
     ChatGptUrlState,
     RuntimeMessage,
 } from "../shared/messages/messages";
+import {
+    captureCurrentVisibleTab,
+    getVisibleTabCaptureStatus,
+} from "./screenshot";
 
 const defaultChatGptSidePanelUrl = "https://chatgpt.com/";
 
@@ -31,20 +35,39 @@ chrome.runtime.onConnect.addListener((port) => {
     console.log("SIDEBAR CONNECTED: TabId = ", port.sender?.tab?.id);
 
     let latestChatGptUrl: ChatGptUrlState | undefined;
+    const sendCaptureStatus = (): void => {
+        void sendVisibleTabCaptureStatus(port);
+    };
+
+    if (isSidebarPage) {
+        sendCaptureStatus();
+        chrome.tabs.onActivated.addListener(sendCaptureStatus);
+        chrome.tabs.onUpdated.addListener(sendCaptureStatus);
+        chrome.windows.onFocusChanged.addListener(sendCaptureStatus);
+    }
 
     port.onMessage.addListener((message: RuntimeMessage) => {
-        if (message.type !== "CHATGPT_URL_UPDATED") {
+        if (message.type === "CHATGPT_URL_UPDATED") {
+            latestChatGptUrl = message.payload;
+            console.info("[ChatBar background] Saved latest ChatGPT URL", {
+                url: latestChatGptUrl.url,
+                reason: latestChatGptUrl.reason,
+            });
             return;
         }
 
-        latestChatGptUrl = message.payload;
-        console.info("[ChatBar background] Saved latest ChatGPT URL", {
-            url: latestChatGptUrl.url,
-            reason: latestChatGptUrl.reason,
-        });
+        if (message.type === "CAPTURE_VISIBLE_TAB") {
+            void captureVisibleTabForPort(port, message.requestId);
+        }
     });
 
     port.onDisconnect.addListener(() => {
+        if (isSidebarPage) {
+            chrome.tabs.onActivated.removeListener(sendCaptureStatus);
+            chrome.tabs.onUpdated.removeListener(sendCaptureStatus);
+            chrome.windows.onFocusChanged.removeListener(sendCaptureStatus);
+        }
+
         const url = latestChatGptUrl?.url;
 
         console.log(
@@ -73,6 +96,43 @@ async function setUpSidePanel(reason: string): Promise<void> {
     await setSidePanelUrl(defaultChatGptSidePanelUrl, reason);
 }
 
+async function sendVisibleTabCaptureStatus(
+    port: chrome.runtime.Port,
+): Promise<void> {
+    try {
+        const status = await getVisibleTabCaptureStatus();
+
+        port.postMessage({
+            type: "CAPTURE_VISIBLE_TAB_STATUS",
+            payload: status.canCapture
+                ? {
+                      canCapture: true,
+                      url: status.url,
+                      title: status.title,
+                  }
+                : {
+                      canCapture: false,
+                      url: status.url,
+                      title: status.title,
+                      reason:
+                          status.reason ??
+                          "This page cannot be captured.",
+                  },
+        } satisfies BackgroundMessage);
+    } catch (error: unknown) {
+        port.postMessage({
+            type: "CAPTURE_VISIBLE_TAB_STATUS",
+            payload: {
+                canCapture: false,
+                reason:
+                    error instanceof Error
+                        ? error.message
+                        : "Could not inspect the active page.",
+            },
+        } satisfies BackgroundMessage);
+    }
+}
+
 let lastUrl = "";
 
 async function setSidePanelUrl(url: string, reason: string): Promise<void> {
@@ -91,4 +151,35 @@ async function setSidePanelUrl(url: string, reason: string): Promise<void> {
         path: url,
         enabled: true,
     });
+}
+
+async function captureVisibleTabForPort(
+    port: chrome.runtime.Port,
+    requestId: string,
+): Promise<void> {
+    try {
+        const screenshot = await captureCurrentVisibleTab();
+
+        port.postMessage({
+            type: "CAPTURE_VISIBLE_TAB_RESULT",
+            requestId,
+            payload: {
+                ok: true,
+                dataUrl: screenshot.dataUrl,
+                capturedAt: screenshot.capturedAt,
+            },
+        } satisfies BackgroundMessage);
+    } catch (error: unknown) {
+        port.postMessage({
+            type: "CAPTURE_VISIBLE_TAB_RESULT",
+            requestId,
+            payload: {
+                ok: false,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Could not capture visible tab.",
+            },
+        } satisfies BackgroundMessage);
+    }
 }
