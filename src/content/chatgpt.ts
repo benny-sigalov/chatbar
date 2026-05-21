@@ -1,4 +1,7 @@
-import type { ChatGptUrlUpdatedMessage } from "../shared/messages/messages";
+import type {
+    BackgroundMessage,
+    ChatGptUrlUpdatedMessage,
+} from "../shared/messages/messages";
 
 class ChatGptContentScript {
     private lastReportedUrl = "";
@@ -12,6 +15,28 @@ class ChatGptContentScript {
             title: document.title,
         });
 
+        this.port.onMessage.addListener(this.handleBackgroundMessage);
+        this.port.onDisconnect.addListener(() => {
+            this.log("Background port disconnected");
+        });
+    }
+
+    private handleBackgroundMessage = (message: BackgroundMessage): void => {
+        if (message.type !== "CHATGPT_PORT_INIT") {
+            return;
+        }
+
+        if (!message.payload.isSidebarPage) {
+            this.log("ChatGPT helper is running in a normal page; skipping sidebar initialization");
+            this.port.disconnect();
+            return;
+        }
+
+        this.log("ChatGPT helper is running in the sidebar; initializing");
+        this.initializeSidebarTracking();
+    };
+
+    private initializeSidebarTracking(): void {
         this.patchHistoryMethod("pushState");
         this.patchHistoryMethod("replaceState");
 

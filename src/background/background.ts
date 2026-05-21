@@ -1,4 +1,5 @@
 import type {
+    BackgroundMessage,
     ChatGptUrlState,
     RuntimeMessage,
 } from "../shared/messages/messages";
@@ -18,6 +19,17 @@ chrome.runtime.onConnect.addListener((port) => {
         return;
     }
 
+    const isSidebarPage = port.sender?.tab?.id === undefined;
+
+    port.postMessage({
+        type: "CHATGPT_PORT_INIT",
+        payload: {
+            isSidebarPage,
+        },
+    } satisfies BackgroundMessage);
+
+    console.log("SIDEBAR CONNECTED: TabId = ", port.sender?.tab?.id);
+
     let latestChatGptUrl: ChatGptUrlState | undefined;
 
     port.onMessage.addListener((message: RuntimeMessage) => {
@@ -35,8 +47,17 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onDisconnect.addListener(() => {
         const url = latestChatGptUrl?.url;
 
-        console.log("DISCONNECTED", url);
+        console.log(
+            "SIDEBAR DISCONNECTED TabId = ",
+            port.sender?.tab?.id,
+            " URL = ",url,
+            " isSideBar = ", isSidebarPage
+        );
         if (!url) {
+            return;
+        }
+
+        if (!isSidebarPage) {
             return;
         }
 
@@ -58,6 +79,8 @@ async function setSidePanelUrl(url: string, reason: string): Promise<void> {
     if (lastUrl === url) {
         return;
     }
+
+    lastUrl = url;
 
     console.info("[ChatBar background] Setting side panel URL", {
         reason,
