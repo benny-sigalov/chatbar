@@ -11,7 +11,9 @@ class ChatGptContentScript {
     private captureRequestSequence = 0;
     private toolbarStatusElement?: HTMLSpanElement;
     private toolbarSourceElement?: HTMLSpanElement;
+    private toolbarAutoScreenshotToggleElement?: HTMLButtonElement;
     private toolbarButtonElement?: HTMLButtonElement;
+    private autoScreenshotEnabled = false;
     private canCaptureVisibleTab = true;
     private activeCaptureSourceKey = "";
     private toolbarObserver?: MutationObserver;
@@ -223,6 +225,7 @@ class ChatGptContentScript {
 
     private renderToolbar(): void {
         const toolbar = this.chatGptDom.insertChatBarToolbar(
+            this.toggleAutoScreenshot,
             this.requestVisibleTabCapture,
         );
 
@@ -232,7 +235,40 @@ class ChatGptContentScript {
 
         this.toolbarStatusElement = toolbar.status;
         this.toolbarSourceElement = toolbar.source;
+        this.toolbarAutoScreenshotToggleElement = toolbar.autoScreenshotToggle;
         this.toolbarButtonElement = toolbar.button;
+        this.updateAutoScreenshotToggle();
+    }
+
+    private toggleAutoScreenshot = (): void => {
+        this.autoScreenshotEnabled = !this.autoScreenshotEnabled;
+        this.updateAutoScreenshotToggle();
+        this.setToolbarStatus(
+            this.autoScreenshotEnabled
+                ? "Auto screenshot enabled"
+                : "Auto screenshot disabled",
+        );
+    };
+
+    private updateAutoScreenshotToggle(): void {
+        if (!this.toolbarAutoScreenshotToggleElement) {
+            return;
+        }
+
+        this.toolbarAutoScreenshotToggleElement.textContent =
+            this.autoScreenshotEnabled
+                ? "Auto screenshot: On"
+                : "Auto screenshot: Off";
+        this.toolbarAutoScreenshotToggleElement.setAttribute(
+            "aria-pressed",
+            String(this.autoScreenshotEnabled),
+        );
+        this.toolbarAutoScreenshotToggleElement.style.background =
+            this.autoScreenshotEnabled ? "#dcfce7" : "#ffffff";
+        this.toolbarAutoScreenshotToggleElement.style.borderColor =
+            this.autoScreenshotEnabled ? "#16a34a" : "rgba(15, 23, 42, 0.24)";
+        this.toolbarAutoScreenshotToggleElement.style.color =
+            this.autoScreenshotEnabled ? "#166534" : "#111827";
     }
 
     private observeComposerForToolbar(): void {

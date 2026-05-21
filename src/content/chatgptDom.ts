@@ -4,6 +4,7 @@ export type PasteScreenshotResult =
     | "composer-not-found";
 
 export type ChatBarToolbar = {
+    autoScreenshotToggle: HTMLButtonElement;
     button: HTMLButtonElement;
     source: HTMLSpanElement;
     status: HTMLSpanElement;
@@ -62,6 +63,7 @@ export class ChatGptDom {
     }
 
     public insertChatBarToolbar(
+        onAutoScreenshotToggle: () => void,
         onScreenshotNow: () => void,
     ): ChatBarToolbar | undefined {
         if (document.getElementById("chatbar-toolbar")) {
@@ -88,6 +90,20 @@ export class ChatGptDom {
         toolbar.style.background = "rgba(255, 255, 255, 0.86)";
         toolbar.style.color = "#111827";
         toolbar.style.font = "12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+
+        const autoScreenshotToggle = document.createElement("button");
+        autoScreenshotToggle.type = "button";
+        autoScreenshotToggle.setAttribute("aria-pressed", "false");
+        autoScreenshotToggle.textContent = "Auto screenshot: Off";
+        autoScreenshotToggle.style.minHeight = "28px";
+        autoScreenshotToggle.style.padding = "0 10px";
+        autoScreenshotToggle.style.border = "1px solid rgba(15, 23, 42, 0.24)";
+        autoScreenshotToggle.style.borderRadius = "6px";
+        autoScreenshotToggle.style.background = "#ffffff";
+        autoScreenshotToggle.style.color = "#111827";
+        autoScreenshotToggle.style.cursor = "pointer";
+        autoScreenshotToggle.style.font = "600 12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+        autoScreenshotToggle.addEventListener("click", onAutoScreenshotToggle);
 
         const button = document.createElement("button");
         button.type = "button";
@@ -116,10 +132,11 @@ export class ChatGptDom {
         status.style.color = "#374151";
         status.style.marginLeft = "auto";
 
-        toolbar.append(button, source, status);
+        toolbar.append(autoScreenshotToggle, button, source, status);
         container.insertAdjacentElement("afterend", toolbar);
 
         return {
+            autoScreenshotToggle,
             button,
             source,
             status,
