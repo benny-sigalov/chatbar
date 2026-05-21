@@ -179,7 +179,18 @@ class ChatGptContentScript {
                 }),
             ]);
 
-            this.setDebugStatus("Captured and copied to clipboard");
+            const pasteResult = await this.pasteBlobIntoComposer(blob);
+
+            if (pasteResult === "pasted") {
+                this.setDebugStatus("Pasted screenshot into composer.");
+                return;
+            }
+
+            this.setDebugStatus(
+                pasteResult === "composer-not-found"
+                    ? "Copied. Click the composer and press Ctrl+V."
+                    : "Copied. Press Ctrl+V to attach.",
+            );
         } catch (error: unknown) {
             this.setDebugStatus(
                 error instanceof Error
@@ -193,6 +204,98 @@ class ChatGptContentScript {
         const response = await fetch(dataUrl);
 
         return response.blob();
+    }
+
+    private async pasteBlobIntoComposer(
+        blob: Blob,
+    ): Promise<"pasted" | "not-accepted" | "composer-not-found"> {
+        const composer = this.findComposer();
+
+        if (!composer) {
+            return "composer-not-found";
+        }
+
+        composer.focus();
+        this.moveCaretToEnd(composer);
+
+        const beforeAttachmentCount = this.countAttachmentElements();
+        const file = new File([blob], `chatbar-screenshot-${Date.now()}.png`, {
+            type: blob.type || "image/png",
+        });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+
+        const pasteEvent = new ClipboardEvent("paste", {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: dataTransfer,
+        });
+
+        composer.dispatchEvent(pasteEvent);
+
+        const accepted = await this.waitForAttachmentChange(
+            beforeAttachmentCount,
+        );
+
+        return accepted ? "pasted" : "not-accepted";
+    }
+
+    private findComposer(): HTMLElement | null {
+        return document.querySelector<HTMLElement>("#prompt-textarea");
+    }
+
+    private countAttachmentElements(): number {
+        return document.querySelectorAll(
+            [
+                '[aria-label*="Remove"]',
+                '[aria-label*="remove"]',
+                '[data-testid*="attachment"]',
+                '[data-testid*="file"]',
+                'img[src^="blob:"]',
+            ].join(","),
+        ).length;
+    }
+
+    private waitForAttachmentChange(previousCount: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            const timeout = window.setTimeout(() => {
+                observer.disconnect();
+                resolve(false);
+            }, 3500);
+
+            const observer = new MutationObserver(() => {
+                if (this.countAttachmentElements() > previousCount) {
+                    window.clearTimeout(timeout);
+                    observer.disconnect();
+                    resolve(true);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+            });
+
+            if (this.countAttachmentElements() > previousCount) {
+                window.clearTimeout(timeout);
+                observer.disconnect();
+                resolve(true);
+            }
+        });
+    }
+
+    private moveCaretToEnd(element: HTMLElement): void {
+        const selection = window.getSelection();
+
+        if (!selection) {
+            return;
+        }
+
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     private handleCaptureVisibleTabStatus(
