@@ -4,16 +4,18 @@ import type {
     CaptureVisibleTabResultMessage,
     ChatGptUrlUpdatedMessage,
 } from "../shared/messages/messages";
+import { ChatGptDom } from "./chatgptDom";
 
 class ChatGptContentScript {
     private lastReportedUrl = "";
     private captureRequestSequence = 0;
-    private debugStatusElement?: HTMLDivElement;
-    private debugSourceElement?: HTMLDivElement;
-    private debugImageElement?: HTMLImageElement;
-    private debugButtonElement?: HTMLButtonElement;
+    private toolbarStatusElement?: HTMLSpanElement;
+    private toolbarSourceElement?: HTMLSpanElement;
+    private toolbarButtonElement?: HTMLButtonElement;
     private canCaptureVisibleTab = true;
     private activeCaptureSourceKey = "";
+    private toolbarObserver?: MutationObserver;
+    private readonly chatGptDom = new ChatGptDom();
     private readonly port = chrome.runtime.connect({
         name: "chatgpt-sidebar",
     });
@@ -66,7 +68,8 @@ class ChatGptContentScript {
             "chatbar:capture-visible-tab",
             this.requestVisibleTabCapture,
         );
-        this.renderDebugOverlay();
+        this.renderToolbar();
+        this.observeComposerForToolbar();
 
         this.reportLocation("initial-load", true);
 
@@ -123,15 +126,15 @@ class ChatGptContentScript {
 
     private requestVisibleTabCapture = (): void => {
         if (!this.canCaptureVisibleTab) {
-            this.setDebugStatus("This page cannot be captured.");
+            this.setToolbarStatus("This page cannot be captured.");
             return;
         }
 
         const requestId = `capture-${Date.now()}-${this.captureRequestSequence++}`;
 
         this.log("Requesting visible tab capture", { requestId });
-        this.setDebugStatus("Capturing visible tab...");
-        this.setDebugButtonDisabled(true);
+        this.setToolbarStatus("Capturing...");
+        this.setToolbarButtonDisabled(true);
         this.port.postMessage({
             type: "CAPTURE_VISIBLE_TAB",
             requestId,
@@ -146,8 +149,8 @@ class ChatGptContentScript {
                 requestId: message.requestId,
                 error: message.payload.error,
             });
-            this.setDebugStatus(`Capture failed: ${message.payload.error}`);
-            this.setDebugButtonDisabled(false);
+            this.setToolbarStatus(`Capture failed: ${message.payload.error}`);
+            this.setToolbarButtonDisabled(false);
             return;
         }
 
@@ -156,15 +159,10 @@ class ChatGptContentScript {
             capturedAt: message.payload.capturedAt,
             dataUrlLength: message.payload.dataUrl.length,
         });
-        this.setDebugStatus(
+        this.setToolbarStatus(
             `Captured ${new Date(message.payload.capturedAt).toLocaleTimeString()}`,
         );
-        this.setDebugButtonDisabled(false);
-
-        if (this.debugImageElement) {
-            this.debugImageElement.src = message.payload.dataUrl;
-            this.debugImageElement.hidden = false;
-        }
+        this.setToolbarButtonDisabled(false);
 
         await this.pasteDataUrlIntoComposer(message.payload.dataUrl);
     }
@@ -172,20 +170,21 @@ class ChatGptContentScript {
     private async pasteDataUrlIntoComposer(dataUrl: string): Promise<void> {
         try {
             const blob = await this.dataUrlToBlob(dataUrl);
-            const pasteResult = await this.pasteBlobIntoComposer(blob);
+            const pasteResult =
+                await this.chatGptDom.pasteScreenshotIntoComposer(blob);
 
             if (pasteResult === "pasted") {
-                this.setDebugStatus("Pasted screenshot into composer.");
+                this.setToolbarStatus("Screenshot attached");
                 return;
             }
 
-            this.setDebugStatus(
+            this.setToolbarStatus(
                 pasteResult === "composer-not-found"
                     ? "Composer not found."
                     : "Paste was not accepted.",
             );
         } catch (error: unknown) {
-            this.setDebugStatus(
+            this.setToolbarStatus(
                 error instanceof Error
                     ? `Captured, but paste failed: ${error.message}`
                     : "Captured, but paste failed.",
@@ -199,83 +198,6 @@ class ChatGptContentScript {
         return response.blob();
     }
 
-    private async pasteBlobIntoComposer(
-        blob: Blob,
-    ): Promise<"pasted" | "not-accepted" | "composer-not-found"> {
-        const composer = this.findComposer();
-
-        if (!composer) {
-            return "composer-not-found";
-        }
-
-        composer.focus();
-
-        const beforeAttachmentCount = this.countAttachmentElements();
-        const file = new File([blob], `chatbar-screenshot-${Date.now()}.png`, {
-            type: blob.type || "image/png",
-        });
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-
-        const pasteEvent = new ClipboardEvent("paste", {
-            bubbles: true,
-            cancelable: true,
-            clipboardData: dataTransfer,
-        });
-
-        composer.dispatchEvent(pasteEvent);
-
-        const accepted = await this.waitForAttachmentChange(
-            beforeAttachmentCount,
-        );
-
-        return accepted ? "pasted" : "not-accepted";
-    }
-
-    private findComposer(): HTMLElement | null {
-        return document.querySelector<HTMLElement>("#prompt-textarea");
-    }
-
-    private countAttachmentElements(): number {
-        return document.querySelectorAll(
-            [
-                '[aria-label*="Remove"]',
-                '[aria-label*="remove"]',
-                '[data-testid*="attachment"]',
-                '[data-testid*="file"]',
-                'img[src^="blob:"]',
-            ].join(","),
-        ).length;
-    }
-
-    private waitForAttachmentChange(previousCount: number): Promise<boolean> {
-        return new Promise((resolve) => {
-            const timeout = window.setTimeout(() => {
-                observer.disconnect();
-                resolve(false);
-            }, 3500);
-
-            const observer = new MutationObserver(() => {
-                if (this.countAttachmentElements() > previousCount) {
-                    window.clearTimeout(timeout);
-                    observer.disconnect();
-                    resolve(true);
-                }
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-            });
-
-            if (this.countAttachmentElements() > previousCount) {
-                window.clearTimeout(timeout);
-                observer.disconnect();
-                resolve(true);
-            }
-        });
-    }
-
     private handleCaptureVisibleTabStatus(
         message: CaptureVisibleTabStatusMessage,
     ): void {
@@ -286,106 +208,60 @@ class ChatGptContentScript {
         this.activeCaptureSourceKey = sourceKey;
 
         if (message.payload.canCapture) {
-            this.setDebugSource(this.formatCaptureSource(message.payload));
-            this.clearDebugImageIfSourceChanged(sourceChanged);
-            this.setDebugStatus(sourceChanged ? "Ready" : this.getDebugStatus());
-            this.setDebugButtonDisabled(false);
+            this.setToolbarSource(this.formatCaptureSource(message.payload));
+            this.setToolbarStatus(
+                sourceChanged ? "Ready" : this.getToolbarStatus(),
+            );
+            this.setToolbarButtonDisabled(false);
             return;
         }
 
-        this.setDebugSource(this.formatCaptureSource(message.payload));
-        this.setDebugStatus(message.payload.reason);
-        this.clearDebugImage();
-        this.setDebugButtonDisabled(true);
+        this.setToolbarSource(this.formatCaptureSource(message.payload));
+        this.setToolbarStatus(message.payload.reason);
+        this.setToolbarButtonDisabled(true);
     }
 
-    private renderDebugOverlay(): void {
-        if (document.getElementById("chatbar-debug-overlay")) {
+    private renderToolbar(): void {
+        const toolbar = this.chatGptDom.insertChatBarToolbar(
+            this.requestVisibleTabCapture,
+        );
+
+        if (!toolbar) {
             return;
         }
 
-        const overlay = document.createElement("section");
-        overlay.id = "chatbar-debug-overlay";
-        overlay.setAttribute("aria-label", "ChatBar screenshot debug");
-        overlay.style.position = "fixed";
-        overlay.style.right = "12px";
-        overlay.style.bottom = "12px";
-        overlay.style.zIndex = "2147483647";
-        overlay.style.display = "grid";
-        overlay.style.gap = "8px";
-        overlay.style.width = "260px";
-        overlay.style.maxWidth = "calc(100vw - 24px)";
-        overlay.style.padding = "10px";
-        overlay.style.border = "1px solid rgba(15, 23, 42, 0.18)";
-        overlay.style.borderRadius = "8px";
-        overlay.style.background = "rgba(255, 255, 255, 0.96)";
-        overlay.style.boxShadow = "0 10px 30px rgba(15, 23, 42, 0.16)";
-        overlay.style.color = "#111827";
-        overlay.style.font = "12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
-
-        const title = document.createElement("div");
-        title.textContent = "ChatBar screenshot debug";
-        title.style.fontWeight = "600";
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = "Capture visible tab";
-        button.style.width = "100%";
-        button.style.minHeight = "32px";
-        button.style.border = "1px solid #111827";
-        button.style.borderRadius = "6px";
-        button.style.background = "#111827";
-        button.style.color = "#ffffff";
-        button.style.cursor = "pointer";
-        button.style.font = "600 12px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
-        button.addEventListener("click", this.requestVisibleTabCapture);
-
-        const status = document.createElement("div");
-        status.textContent = "Ready";
-        status.style.minHeight = "18px";
-        status.style.color = "#374151";
-
-        const source = document.createElement("div");
-        source.textContent = "Page: active tab";
-        source.style.minHeight = "18px";
-        source.style.overflow = "hidden";
-        source.style.textOverflow = "ellipsis";
-        source.style.whiteSpace = "nowrap";
-        source.style.color = "#4b5563";
-
-        const image = document.createElement("img");
-        image.hidden = true;
-        image.alt = "Latest captured visible tab";
-        image.style.width = "100%";
-        image.style.maxHeight = "180px";
-        image.style.objectFit = "contain";
-        image.style.border = "1px solid rgba(15, 23, 42, 0.12)";
-        image.style.borderRadius = "6px";
-        image.style.background = "#f9fafb";
-
-        overlay.append(title, button, status, source, image);
-        document.documentElement.append(overlay);
-
-        this.debugStatusElement = status;
-        this.debugSourceElement = source;
-        this.debugImageElement = image;
-        this.debugButtonElement = button;
+        this.toolbarStatusElement = toolbar.status;
+        this.toolbarSourceElement = toolbar.source;
+        this.toolbarButtonElement = toolbar.button;
     }
 
-    private setDebugStatus(message: string): void {
-        if (this.debugStatusElement) {
-            this.debugStatusElement.textContent = message;
+    private observeComposerForToolbar(): void {
+        this.toolbarObserver = new MutationObserver(() => {
+            if (!document.getElementById("chatbar-toolbar")) {
+                this.renderToolbar();
+            }
+        });
+
+        this.toolbarObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+    }
+
+    private setToolbarStatus(message: string): void {
+        if (this.toolbarStatusElement) {
+            this.toolbarStatusElement.textContent = message;
         }
     }
 
-    private getDebugStatus(): string {
-        return this.debugStatusElement?.textContent ?? "Ready";
+    private getToolbarStatus(): string {
+        return this.toolbarStatusElement?.textContent ?? "Ready";
     }
 
-    private setDebugSource(message: string): void {
-        if (this.debugSourceElement) {
-            this.debugSourceElement.textContent = message;
-            this.debugSourceElement.title = message;
+    private setToolbarSource(message: string): void {
+        if (this.toolbarSourceElement) {
+            this.toolbarSourceElement.textContent = message;
+            this.toolbarSourceElement.title = message;
         }
     }
 
@@ -404,29 +280,14 @@ class ChatGptContentScript {
         }
     }
 
-    private clearDebugImageIfSourceChanged(sourceChanged: boolean): void {
-        if (sourceChanged) {
-            this.clearDebugImage();
-        }
-    }
-
-    private clearDebugImage(): void {
-        if (!this.debugImageElement) {
+    private setToolbarButtonDisabled(disabled: boolean): void {
+        if (!this.toolbarButtonElement) {
             return;
         }
 
-        this.debugImageElement.removeAttribute("src");
-        this.debugImageElement.hidden = true;
-    }
-
-    private setDebugButtonDisabled(disabled: boolean): void {
-        if (!this.debugButtonElement) {
-            return;
-        }
-
-        this.debugButtonElement.disabled = disabled;
-        this.debugButtonElement.style.opacity = disabled ? "0.68" : "1";
-        this.debugButtonElement.style.cursor = disabled ? "wait" : "pointer";
+        this.toolbarButtonElement.disabled = disabled;
+        this.toolbarButtonElement.style.opacity = disabled ? "0.68" : "1";
+        this.toolbarButtonElement.style.cursor = disabled ? "wait" : "pointer";
     }
 
     private log(message: string, details?: unknown): void {
