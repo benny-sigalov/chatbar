@@ -570,42 +570,7 @@ re-tested during hardening.
 
 ---
 
-## Phase 2 — Track Current Page Source
-
-### Goal
-
-Know which browser page should be included.
-
-Because ChatGPT is in the side panel, the active tab is usually the source page.
-
-### Deliverables
-
-- Track active tab/window.
-- Store session-only source state:
-
-```text
-sourceTabId
-sourceWindowId
-sourceUrl
-sourceTitle
-```
-
-- Ignore:
-    - `chrome://`
-    - extension pages
-    - empty/new tab pages
-    - ChatGPT pages opened as normal tabs
-
-### Success Criteria
-
-```text
-User navigates between pages
-→ ChatBar state reflects the current source page
-```
-
----
-
-## Phase 3 — Capture Current Visible Page
+## Phase 2 — Capture Current Visible Page
 
 ### Goal
 
@@ -628,7 +593,7 @@ User is viewing a page
 
 ---
 
-## Phase 4 - Inject Screenshot Controls
+## Phase 3 - Inject Screenshot Controls
 
 ### Goal
 
@@ -663,7 +628,7 @@ No duplicate toggles
 
 ---
 
-## Phase 5 — Intercept Send
+## Phase 4 — Intercept Send
 
 ### Goal
 
@@ -704,7 +669,7 @@ Typed message remains intact
 
 ---
 
-## Phase 6 — Attach Screenshot Before Sending
+## Phase 5 — Attach Screenshot Before Sending
 
 ### Goal
 
@@ -737,7 +702,7 @@ User clicks Send with Auto screenshot enabled
 
 ---
 
-## Phase 7 - Manual Screenshot Utility
+## Phase 6 - Manual Screenshot Utility
 
 ### Goal
 
@@ -769,7 +734,7 @@ User clicks screenshot action
 
 ---
 
-## Phase 8 — Source Clarity and Trust Polish
+## Phase 7 — Source Clarity and Trust Polish
 
 ### Goal
 
@@ -797,7 +762,7 @@ User always understands what will be included and when.
 
 ---
 
-## Phase 9 — Hardening
+## Phase 8 — Hardening
 
 ### Goal
 
@@ -834,7 +799,7 @@ Common failure cases are handled gracefully.
 
 ---
 
-## Phase 10 — Packaging / Chrome Web Store Readiness
+## Phase 9 — Packaging / Chrome Web Store Readiness
 
 ### Goal
 
