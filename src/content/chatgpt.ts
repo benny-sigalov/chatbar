@@ -17,6 +17,7 @@ class ChatGptContentScript {
     private isAutoSendInProgress = false;
     private canCaptureVisibleTab = true;
     private activeCaptureSourceKey = "";
+    private observedSendButton?: HTMLButtonElement;
     private toolbarObserver?: MutationObserver;
     private readonly chatGptDom = new ChatGptDom();
     private readonly port = chrome.runtime.connect({
@@ -67,6 +68,7 @@ class ChatGptContentScript {
         window.addEventListener("popstate", this.reportLocationIfChanged);
         window.addEventListener("hashchange", this.reportLocationIfChanged);
         document.addEventListener("keydown", this.interceptAutoSendKeyDown, true);
+        this.startSendButtonPolling();
         window.setInterval(this.reportLocationIfChanged, 1000);
         document.addEventListener(
             "chatbar:capture-visible-tab",
@@ -160,6 +162,53 @@ class ChatGptContentScript {
         }
 
         if (!this.chatGptDom.isPlainEnterInComposer(event)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.isAutoSendInProgress = true;
+        this.setToolbarStatus("Capturing before send...");
+        this.requestScreenshot("auto-send");
+    };
+
+    private startSendButtonPolling(): void {
+        this.updateSendButtonSubscription();
+        window.setInterval(this.updateSendButtonSubscription, 150);
+    }
+
+    private updateSendButtonSubscription = (): void => {
+        const sendButton = this.chatGptDom.findSendButton();
+
+        if (sendButton === this.observedSendButton) {
+            return;
+        }
+
+        if (this.observedSendButton) {
+            this.observedSendButton.removeEventListener(
+                "click",
+                this.interceptAutoSendClick,
+                true,
+            );
+        }
+
+        this.observedSendButton = sendButton ?? undefined;
+
+        if (this.observedSendButton) {
+            this.observedSendButton.addEventListener(
+                "click",
+                this.interceptAutoSendClick,
+                true,
+            );
+        }
+    };
+
+    private interceptAutoSendClick = (event: MouseEvent): void => {
+        if (
+            !this.autoScreenshotEnabled ||
+            this.isAutoSendInProgress ||
+            !this.canCaptureVisibleTab
+        ) {
             return;
         }
 
