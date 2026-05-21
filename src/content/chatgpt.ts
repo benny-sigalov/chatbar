@@ -14,6 +14,7 @@ class ChatGptContentScript {
     private toolbarAutoScreenshotToggleElement?: HTMLButtonElement;
     private toolbarButtonElement?: HTMLButtonElement;
     private autoScreenshotEnabled = false;
+    private isAutoSendInProgress = false;
     private canCaptureVisibleTab = true;
     private activeCaptureSourceKey = "";
     private toolbarObserver?: MutationObserver;
@@ -65,6 +66,7 @@ class ChatGptContentScript {
 
         window.addEventListener("popstate", this.reportLocationIfChanged);
         window.addEventListener("hashchange", this.reportLocationIfChanged);
+        document.addEventListener("keydown", this.interceptAutoSendKeyDown, true);
         window.setInterval(this.reportLocationIfChanged, 1000);
         document.addEventListener(
             "chatbar:capture-visible-tab",
@@ -127,6 +129,10 @@ class ChatGptContentScript {
     }
 
     private requestVisibleTabCapture = (): void => {
+        this.requestScreenshot("manual");
+    };
+
+    private requestScreenshot = (mode: "manual" | "auto-send"): void => {
         if (!this.canCaptureVisibleTab) {
             this.setToolbarStatus("This page cannot be captured.");
             return;
@@ -140,7 +146,28 @@ class ChatGptContentScript {
         this.port.postMessage({
             type: "CAPTURE_VISIBLE_TAB",
             requestId,
+            mode,
         });
+    };
+
+    private interceptAutoSendKeyDown = (event: KeyboardEvent): void => {
+        if (
+            !this.autoScreenshotEnabled ||
+            this.isAutoSendInProgress ||
+            !this.canCaptureVisibleTab
+        ) {
+            return;
+        }
+
+        if (!this.chatGptDom.isPlainEnterInComposer(event)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.isAutoSendInProgress = true;
+        this.setToolbarStatus("Capturing before send...");
+        this.requestScreenshot("auto-send");
     };
 
     private async handleCaptureVisibleTabResult(
@@ -153,6 +180,7 @@ class ChatGptContentScript {
             });
             this.setToolbarStatus(`Capture failed: ${message.payload.error}`);
             this.setToolbarButtonDisabled(false);
+            this.isAutoSendInProgress = false;
             return;
         }
 
@@ -166,10 +194,18 @@ class ChatGptContentScript {
         );
         this.setToolbarButtonDisabled(false);
 
-        await this.pasteDataUrlIntoComposer(message.payload.dataUrl);
+        const pasted = await this.pasteDataUrlIntoComposer(
+            message.payload.dataUrl,
+        );
+
+        if (message.mode === "auto-send" && pasted) {
+            await this.completeAutoSend();
+        } else if (message.mode === "auto-send") {
+            this.isAutoSendInProgress = false;
+        }
     }
 
-    private async pasteDataUrlIntoComposer(dataUrl: string): Promise<void> {
+    private async pasteDataUrlIntoComposer(dataUrl: string): Promise<boolean> {
         try {
             const blob = await this.dataUrlToBlob(dataUrl);
             const pasteResult =
@@ -177,7 +213,7 @@ class ChatGptContentScript {
 
             if (pasteResult === "pasted") {
                 this.setToolbarStatus("Screenshot attached");
-                return;
+                return true;
             }
 
             this.setToolbarStatus(
@@ -185,12 +221,15 @@ class ChatGptContentScript {
                     ? "Composer not found."
                     : "Paste was not accepted.",
             );
+            return false;
         } catch (error: unknown) {
             this.setToolbarStatus(
                 error instanceof Error
                     ? `Captured, but paste failed: ${error.message}`
                     : "Captured, but paste failed.",
             );
+            this.isAutoSendInProgress = false;
+            return false;
         }
     }
 
@@ -198,6 +237,23 @@ class ChatGptContentScript {
         const response = await fetch(dataUrl);
 
         return response.blob();
+    }
+
+    private async completeAutoSend(): Promise<void> {
+        this.setToolbarStatus("Waiting for screenshot upload...");
+        const sendButton = await this.chatGptDom.waitForSendButtonReady();
+
+        if (!sendButton) {
+            this.setToolbarStatus(
+                "Screenshot attached. Send when upload is ready.",
+            );
+            this.isAutoSendInProgress = false;
+            return;
+        }
+
+        this.chatGptDom.clickSendButton(sendButton);
+        this.setToolbarStatus("Screenshot attached and sent");
+        this.isAutoSendInProgress = false;
     }
 
     private handleCaptureVisibleTabStatus(

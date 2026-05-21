@@ -62,6 +62,59 @@ export class ChatGptDom {
         return accepted ? "pasted" : "not-accepted";
     }
 
+    public isPlainEnterInComposer(event: KeyboardEvent): boolean {
+        const composer = this.findComposer();
+        const target = event.target;
+
+        return (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.ctrlKey &&
+            !event.altKey &&
+            !event.metaKey &&
+            composer !== null &&
+            target instanceof Node &&
+            composer.contains(target)
+        );
+    }
+
+    public findSendButton(): HTMLButtonElement | null {
+        return (
+            document.querySelector<HTMLButtonElement>(
+                "#composer-submit-button",
+            ) ??
+            document.querySelector<HTMLButtonElement>(
+                'button[data-testid="send-button"]',
+            ) ??
+            document.querySelector<HTMLButtonElement>(
+                'button[aria-label="Send prompt"]',
+            )
+        );
+    }
+
+    public async waitForSendButtonReady(
+        timeoutMs = 60000,
+        pollMs = 250,
+    ): Promise<HTMLButtonElement | null> {
+        const startedAt = Date.now();
+
+        while (Date.now() - startedAt < timeoutMs) {
+            const sendButton = this.findSendButton();
+
+            if (sendButton && !sendButton.disabled) {
+                return sendButton;
+            }
+
+            await this.sleep(pollMs);
+        }
+
+        return null;
+    }
+
+    public clickSendButton(button: HTMLButtonElement): void {
+        button.click();
+    }
+
     public insertChatBarToolbar(
         onAutoScreenshotToggle: () => void,
         onScreenshotNow: () => void,
@@ -180,6 +233,12 @@ export class ChatGptDom {
                 observer.disconnect();
                 resolve(true);
             }
+        });
+    }
+
+    private sleep(milliseconds: number): Promise<void> {
+        return new Promise((resolve) => {
+            window.setTimeout(resolve, milliseconds);
         });
     }
 }

@@ -23,14 +23,18 @@ export type ChatGptPortInitMessage = {
     };
 };
 
+export type CaptureVisibleTabMode = "manual" | "auto-send";
+
 export type CaptureVisibleTabMessage = {
     type: ScreenshotRequestMessageType;
     requestId: string;
+    mode?: CaptureVisibleTabMode;
 };
 
 export type CaptureVisibleTabResultMessage = {
     type: ScreenshotResponseMessageType;
     requestId: string;
+    mode?: CaptureVisibleTabMode;
     payload:
         | {
               ok: true;

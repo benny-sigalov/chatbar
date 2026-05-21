@@ -1,6 +1,7 @@
 import type {
     BackgroundMessage,
     ChatGptUrlState,
+    CaptureVisibleTabMode,
     RuntimeMessage,
 } from "../shared/messages/messages";
 import {
@@ -57,7 +58,7 @@ chrome.runtime.onConnect.addListener((port) => {
         }
 
         if (message.type === "CAPTURE_VISIBLE_TAB") {
-            void captureVisibleTabForPort(port, message.requestId);
+            void captureVisibleTabForPort(port, message.requestId, message.mode);
         }
     });
 
@@ -156,6 +157,7 @@ async function setSidePanelUrl(url: string, reason: string): Promise<void> {
 async function captureVisibleTabForPort(
     port: chrome.runtime.Port,
     requestId: string,
+    mode: CaptureVisibleTabMode | undefined,
 ): Promise<void> {
     try {
         const screenshot = await captureCurrentVisibleTab();
@@ -163,6 +165,7 @@ async function captureVisibleTabForPort(
         port.postMessage({
             type: "CAPTURE_VISIBLE_TAB_RESULT",
             requestId,
+            mode,
             payload: {
                 ok: true,
                 dataUrl: screenshot.dataUrl,
@@ -173,6 +176,7 @@ async function captureVisibleTabForPort(
         port.postMessage({
             type: "CAPTURE_VISIBLE_TAB_RESULT",
             requestId,
+            mode,
             payload: {
                 ok: false,
                 error:
