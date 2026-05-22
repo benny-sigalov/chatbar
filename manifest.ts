@@ -4,7 +4,8 @@ export default defineManifest({
     manifest_version: 3,
     name: "ChatBar",
     version: "1.0.0",
-    description: "Attach screenshots of your current browser tab to ChatGPT from the side panel.",
+    description:
+        "Attach screenshots of your current browser tab to ChatGPT from the side panel.",
     icons: {
         16: "icons/icon-16.png",
         32: "icons/icon-32.png",

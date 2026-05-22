@@ -96,4 +96,3 @@ See [docs/PUBLISHING.md](docs/PUBLISHING.md).
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
