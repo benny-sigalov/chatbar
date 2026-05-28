@@ -6,7 +6,7 @@ ChatBar is not affiliated with, endorsed by, or sponsored by OpenAI.
 
 If ChatBar is useful to you, you can buy me a coffee:
 
-https://buymeacoffee.com/benny-sigalov
+https://buymeacoffee.com/benny.sigalov
 
 ## Contact
 
