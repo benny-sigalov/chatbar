@@ -6,13 +6,21 @@ import type {
 } from "../shared/messages/messages";
 import { ChatGptDom } from "./chatgptDom";
 
+type ActiveCaptureRequest = {
+    requestId: string;
+    mode: "manual" | "auto-send";
+    timeoutId: number;
+};
+
 class ChatGptContentScript {
+    private static readonly captureTimeoutMs = 30000;
     private lastReportedUrl = "";
     private captureRequestSequence = 0;
     private toolbarStatusElement?: HTMLSpanElement;
     private toolbarSourceElement?: HTMLSpanElement;
     private toolbarAutoScreenshotToggleElement?: HTMLButtonElement;
     private toolbarButtonElement?: HTMLButtonElement;
+    private activeCaptureRequest?: ActiveCaptureRequest;
     private autoScreenshotEnabled = false;
     private allowNextSendClick = false;
     private isAutoSendInProgress = false;
@@ -34,6 +42,9 @@ class ChatGptContentScript {
         this.port.onMessage.addListener(this.handleBackgroundMessage);
         this.port.onDisconnect.addListener(() => {
             this.log("Background port disconnected");
+            this.failActiveCapture(
+                "Extension connection lost. Reload ChatGPT to reconnect.",
+            );
         });
     }
 
@@ -138,7 +149,7 @@ class ChatGptContentScript {
     }
 
     private requestVisibleTabCapture = (): void => {
-        if (this.isAutoSendInProgress) {
+        if (this.isCaptureInProgress()) {
             this.setToolbarStatus("Screenshot already in progress.");
             return;
         }
@@ -146,22 +157,56 @@ class ChatGptContentScript {
         this.requestScreenshot("manual");
     };
 
-    private requestScreenshot = (mode: "manual" | "auto-send"): void => {
+    private requestScreenshot = (mode: "manual" | "auto-send"): boolean => {
+        if (this.isCaptureInProgress()) {
+            this.setToolbarStatus("Screenshot already in progress.");
+            return false;
+        }
+
         if (!this.canCaptureVisibleTab) {
             this.setToolbarStatus("This page cannot be captured.");
-            return;
+            return false;
         }
 
         const requestId = `capture-${Date.now()}-${this.captureRequestSequence++}`;
+        const timeoutId = window.setTimeout(() => {
+            if (this.activeCaptureRequest?.requestId !== requestId) {
+                return;
+            }
+
+            this.log("Visible tab capture timed out", { requestId, mode });
+            this.failActiveCapture("Capture timed out. Try again.");
+        }, ChatGptContentScript.captureTimeoutMs);
+
+        this.activeCaptureRequest = {
+            requestId,
+            mode,
+            timeoutId,
+        };
 
         this.log("Requesting visible tab capture", { requestId });
         this.setToolbarStatus("Capturing...");
         this.setToolbarButtonDisabled(true);
-        this.port.postMessage({
-            type: "CAPTURE_VISIBLE_TAB",
-            requestId,
-            mode,
-        });
+
+        try {
+            this.port.postMessage({
+                type: "CAPTURE_VISIBLE_TAB",
+                requestId,
+                mode,
+            });
+            return true;
+        } catch (error: unknown) {
+            this.log("Could not request visible tab capture", {
+                requestId,
+                error,
+            });
+            this.failActiveCapture(
+                error instanceof Error
+                    ? `Could not start capture: ${error.message}`
+                    : "Could not start capture.",
+            );
+            return false;
+        }
     };
 
     private interceptAutoSendKeyDown = (event: KeyboardEvent): void => {
@@ -182,7 +227,9 @@ class ChatGptContentScript {
 
         this.isAutoSendInProgress = true;
         this.setToolbarStatus("Capturing before send...");
-        this.requestScreenshot("auto-send");
+        if (!this.requestScreenshot("auto-send")) {
+            this.isAutoSendInProgress = false;
+        }
     };
 
     private startSendButtonPolling(): void {
@@ -235,12 +282,26 @@ class ChatGptContentScript {
 
         this.isAutoSendInProgress = true;
         this.setToolbarStatus("Capturing before send...");
-        this.requestScreenshot("auto-send");
+        if (!this.requestScreenshot("auto-send")) {
+            this.isAutoSendInProgress = false;
+        }
     };
 
     private async handleCaptureVisibleTabResult(
         message: CaptureVisibleTabResultMessage,
     ): Promise<void> {
+        if (
+            !this.activeCaptureRequest ||
+            this.activeCaptureRequest.requestId !== message.requestId
+        ) {
+            this.log("Ignoring stale visible tab capture result", {
+                requestId: message.requestId,
+            });
+            return;
+        }
+
+        this.clearActiveCaptureRequest();
+
         if (!message.payload.ok) {
             this.log("Visible tab capture failed", {
                 requestId: message.requestId,
@@ -339,13 +400,38 @@ class ChatGptContentScript {
             this.setToolbarStatus(
                 sourceChanged ? "Ready" : this.getToolbarStatus(),
             );
-            this.setToolbarButtonDisabled(false);
+            this.setToolbarButtonDisabled(this.isCaptureInProgress());
             return;
         }
 
         this.setToolbarSource(this.formatCaptureSource(message.payload));
         this.setToolbarStatus(message.payload.reason);
         this.setToolbarButtonDisabled(true);
+    }
+
+    private clearActiveCaptureRequest(): void {
+        if (!this.activeCaptureRequest) {
+            return;
+        }
+
+        window.clearTimeout(this.activeCaptureRequest.timeoutId);
+        this.activeCaptureRequest = undefined;
+    }
+
+    private failActiveCapture(message: string): void {
+        const wasAutoSend = this.activeCaptureRequest?.mode === "auto-send";
+
+        this.clearActiveCaptureRequest();
+        this.setToolbarStatus(message);
+        this.setToolbarButtonDisabled(!this.canCaptureVisibleTab);
+
+        if (wasAutoSend || this.isAutoSendInProgress) {
+            this.isAutoSendInProgress = false;
+        }
+    }
+
+    private isCaptureInProgress(): boolean {
+        return this.activeCaptureRequest !== undefined;
     }
 
     private renderToolbar(): void {

@@ -1,7 +1,7 @@
 {
     "name": "chatbar",
     "private": true,
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Chrome side panel helper that attaches current-page screenshots to ChatGPT.",
     "author": "Benjamin Sigalov <chatbar@fastmail.com>",
     "funding": {
