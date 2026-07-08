@@ -3,7 +3,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 export default defineManifest({
     manifest_version: 3,
     name: "ChatBar",
-    version: "1.0.0",
+    version: "1.0.1",
     description:
         "Attach screenshots of your current browser tab to ChatGPT from the side panel.",
     icons: {
