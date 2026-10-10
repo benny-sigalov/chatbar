@@ -28,10 +28,9 @@ class ChatGptContentScript {
     private activeCaptureSourceKey = "";
     private observedSendButton?: HTMLButtonElement;
     private toolbarObserver?: MutationObserver;
+    private sidebarInitialized = false;
+    private port?: chrome.runtime.Port;
     private readonly chatGptDom = new ChatGptDom();
-    private readonly port = chrome.runtime.connect({
-        name: "chatgpt-sidebar",
-    });
 
     public register(): void {
         this.log("ChatGPT helper loaded", {
@@ -39,13 +38,52 @@ class ChatGptContentScript {
             title: document.title,
         });
 
-        this.port.onMessage.addListener(this.handleBackgroundMessage);
-        this.port.onDisconnect.addListener(() => {
-            this.log("Background port disconnected");
+        try {
+            this.getPort();
+        } catch (error: unknown) {
+            this.log("Could not connect to extension background", { error });
+        }
+    }
+
+    private getPort(): chrome.runtime.Port {
+        if (this.port) {
+            return this.port;
+        }
+
+        let port: chrome.runtime.Port;
+        try {
+            port = chrome.runtime.connect({ name: "chatgpt-sidebar" });
+        } catch (error: unknown) {
+            if (
+                error instanceof Error &&
+                /context invalidated/i.test(error.message)
+            ) {
+                throw new Error(
+                    "Extension was reloaded. Close and reopen the ChatGPT sidebar.",
+                );
+            }
+            throw error;
+        }
+
+        this.port = port;
+        port.onMessage.addListener((message: BackgroundMessage) => {
+            if (this.port === port) {
+                this.handleBackgroundMessage(message);
+            }
+        });
+        port.onDisconnect.addListener(() => {
+            // Read lastError so Chrome does not report an unchecked runtime error.
+            const error = chrome.runtime.lastError?.message;
+            if (this.port !== port) {
+                return;
+            }
+            this.port = undefined;
+            this.log("Background port disconnected", { error });
             this.failActiveCapture(
-                "Extension connection lost. Reload ChatGPT to reconnect.",
+                "Extension connection lost. Try again to reconnect.",
             );
         });
+        return port;
     }
 
     private handleBackgroundMessage = (message: BackgroundMessage): void => {
@@ -67,11 +105,21 @@ class ChatGptContentScript {
             this.log(
                 "ChatGPT helper is running in a normal page; skipping sidebar initialization",
             );
-            this.port.disconnect();
+            const port = this.port;
+            this.port = undefined;
+            port?.disconnect();
             return;
         }
 
         this.log("ChatGPT helper is running in the sidebar; initializing");
+        if (this.sidebarInitialized) {
+            this.reportLocation("reconnected", true);
+            if (!this.isCaptureInProgress() && !this.isAutoSendInProgress) {
+                this.setToolbarStatus("Ready");
+            }
+            return;
+        }
+        this.sidebarInitialized = true;
         this.initializeSidebarTracking();
     };
 
@@ -123,7 +171,7 @@ class ChatGptContentScript {
         this.log("Reporting ChatGPT URL update", message.payload);
 
         try {
-            this.port.postMessage(message);
+            this.getPort().postMessage(message);
         } catch {
             this.log("Could not post URL update through runtime port");
         }
@@ -189,13 +237,22 @@ class ChatGptContentScript {
         this.setToolbarButtonDisabled(true);
 
         try {
-            this.port.postMessage({
+            this.getPort().postMessage({
                 type: "CAPTURE_VISIBLE_TAB",
                 requestId,
                 mode,
             });
             return true;
         } catch (error: unknown) {
+            // A post can fail before onDisconnect is delivered. Retire this port
+            // so the next user request reconnects; never replay a capture blindly.
+            const port = this.port;
+            this.port = undefined;
+            try {
+                port?.disconnect();
+            } catch {
+                // Extension reloads can also invalidate disconnect().
+            }
             this.log("Could not request visible tab capture", {
                 requestId,
                 error,
@@ -270,6 +327,16 @@ class ChatGptContentScript {
         }
 
         if (!this.autoScreenshotEnabled || !this.canCaptureVisibleTab) {
+            return;
+        }
+
+        // The same node can become disabled or switch to Stop between polls.
+        const sendButton = this.chatGptDom.findSendButton();
+        if (
+            event.currentTarget !== sendButton ||
+            !sendButton ||
+            !this.chatGptDom.isSendButtonReady(sendButton)
+        ) {
             return;
         }
 

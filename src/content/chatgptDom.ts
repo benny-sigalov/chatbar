@@ -12,7 +12,15 @@ export type ChatBarToolbar = {
 
 export class ChatGptDom {
     public findComposer(): HTMLElement | null {
-        return document.querySelector<HTMLElement>("#prompt-textarea");
+        return document.querySelector<HTMLElement>(
+            [
+                "#prompt-textarea",
+                "#mobile-composer-prompt",
+                "textarea[data-mobile-composer-prompt]",
+                '[data-composer-markdown][contenteditable="true"]',
+                '[data-composer-editor-host] [contenteditable="true"]',
+            ].join(","),
+        );
     }
 
     public findComposerContainer(): HTMLElement | null {
@@ -24,6 +32,7 @@ export class ChatGptDom {
 
         return (
             composer.closest<HTMLElement>("form") ??
+            composer.closest<HTMLElement>("[data-composer-wrap-outer]") ??
             composer.closest<HTMLElement>('[role="presentation"]') ??
             composer.parentElement
         );
@@ -79,16 +88,41 @@ export class ChatGptDom {
     }
 
     public findSendButton(): HTMLButtonElement | null {
-        return (
-            document.querySelector<HTMLButtonElement>(
+        const container = this.findComposerContainer();
+
+        if (!container) {
+            return null;
+        }
+
+        const candidates = container.querySelectorAll<HTMLButtonElement>(
+            [
                 "#composer-submit-button",
-            ) ??
-            document.querySelector<HTMLButtonElement>(
+                "button[data-composer-submit]",
                 'button[data-testid="send-button"]',
-            ) ??
-            document.querySelector<HTMLButtonElement>(
                 'button[aria-label="Send prompt"]',
-            )
+                'button[aria-label="Send message"]',
+                'button[type="submit"][aria-label="Send"]',
+            ].join(","),
+        );
+
+        // ChatGPT reuses the submit control as Stop while generating.
+        return (
+            Array.from(candidates).find((button) => {
+                const label = button.getAttribute("aria-label");
+                return (
+                    button.getAttribute("data-testid") !== "stop-button" &&
+                    label !== "Stop generating" &&
+                    (!label || label !== button.getAttribute("data-stop-label"))
+                );
+            }) ?? null
+        );
+    }
+
+    public isSendButtonReady(button: HTMLButtonElement): boolean {
+        return (
+            !button.disabled &&
+            button.getAttribute("aria-disabled") !== "true" &&
+            !button.hasAttribute("data-visually-disabled")
         );
     }
 
@@ -101,7 +135,7 @@ export class ChatGptDom {
         while (Date.now() - startedAt < timeoutMs) {
             const sendButton = this.findSendButton();
 
-            if (sendButton && !sendButton.disabled) {
+            if (sendButton && this.isSendButtonReady(sendButton)) {
                 return sendButton;
             }
 

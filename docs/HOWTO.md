@@ -24,6 +24,10 @@
 
 If the active page cannot be captured, ChatBar does not interrupt sending.
 
+Use Ctrl+Enter to send without a screenshot, even when Auto screenshot is on.
+
+After reloading or updating the extension, close and reopen the ChatGPT side panel to reconnect it.
+
 ## Pages Chrome Does Not Allow Capturing
 
 Chrome does not allow extensions to capture some protected pages, including:

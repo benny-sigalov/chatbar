@@ -2,6 +2,19 @@
 
 This checklist is for preparing ChatBar for GitHub and the Chrome Web Store.
 
+## Updating An Existing Store Item
+
+1. Increase the version in both `package.json` and `manifest.ts` above the version already uploaded to the store.
+2. Update `CHANGELOG.md` and run the checks in `RELEASE_TEST_CHECKLIST.md` against the production build.
+3. Run `yarn check`, then `yarn package`. The ZIP contains the complete extension with `manifest.json` at its root.
+4. Upload `release/chatbar-<version>.zip` through **Package → Upload New Package** on the existing item's dashboard.
+5. Update the store icon and any listing images or text affected by the release. The 128px store icon is `public/icons/icon-128.png`.
+6. Confirm the privacy policy URL and permission/data disclosures still match the extension, then submit for review.
+
+For version 1.0.2, the permissions and data handling are unchanged. The release updates ChatGPT DOM support, connection recovery, and the extension icon. Test Enter and Send with Auto screenshot on, Ctrl+Enter as a bypass, manual capture, and closing/reopening the sidebar after reloading the extension.
+
+Official update instructions: https://developer.chrome.com/docs/webstore/update
+
 ## GitHub Release Prep
 
 - [ ] Confirm `README.md` is accurate.
